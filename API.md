@@ -13,7 +13,8 @@ Base `/api`, JSON requests/responses except media, upload chunks and ZIP. Errors
 | POST /auth/password | current, password | update, revoke all own sessions |
 | POST /invitations | — | owner-only one-time raw token, 48 hours |
 | GET /users | — | shared household names/IDs |
-| GET /photos | q, cursor, album, favorite=mine/partner/both, trash=true, new=true, onThisDay=true | items (48), next cursor |
+| GET /photos | q, cursor, album, favorite=mine/partner/both, trash=true, new=true, onThisDay=true, date=YYYY-MM-DD | items (48), next cursor |
+| GET /moments | — | smart spatio-temporal clusters (moments/outings grouped by date, time window & GPS proximity) |
 | GET /photos/:id | — | photo + private metadata + comments, mark viewed |
 | PATCH /photos/:id | capture_local?, featured? | normalized correction |
 | PUT /photos/:id/favorite | favorite:boolean | idempotent favorite state |

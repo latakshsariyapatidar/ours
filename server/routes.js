@@ -68,6 +68,165 @@ export function routes(app) {
       });
     await archive.finalize();
   });
+  app.get("/api/moments", async (req, res) => {
+    const rows = (
+      await q(
+        `SELECT p.id, p.filename, p.capture_local, p.width, p.height, p.status,
+                (p.uploader<>$1 AND NOT EXISTS(SELECT 1 FROM photo_views v WHERE v.photo_id=p.id AND v.user_id=$1)) AS is_new,
+                m.data->>'latitude' as lat, m.data->>'longitude' as lng
+         FROM photos p
+         LEFT JOIN photo_metadata m ON m.photo_id=p.id
+         WHERE p.deleted_at IS NULL AND p.status='ready'
+         ORDER BY p.capture_local DESC, p.id DESC
+         LIMIT 600`,
+        [req.user.id],
+      )
+    ).rows;
+
+    if (!rows.length) {
+      return res.json({ moments: [] });
+    }
+
+    function distanceKm(lat1, lon1, lat2, lon2) {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function formatTime(iso) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      } catch {
+        return "";
+      }
+    }
+
+    function generateMomentTitle(items) {
+      const first = items[0];
+      const d = new Date(first.capture_local);
+      const hour = d.getHours();
+      const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+
+      let timeOfDay = "Day";
+      if (hour >= 5 && hour < 11) timeOfDay = "Morning";
+      else if (hour >= 11 && hour < 16) timeOfDay = "Afternoon";
+      else if (hour >= 16 && hour < 19) timeOfDay = "Golden Hour";
+      else if (hour >= 19 && hour < 23) timeOfDay = "Evening";
+      else timeOfDay = "Night";
+
+      const hasGps = items.some((p) => p.lat && p.lng);
+
+      if (timeOfDay === "Golden Hour") {
+        return `Golden Hour Together`;
+      }
+      if (items.length === 1) {
+        return `${dayName} ${timeOfDay} Memory`;
+      }
+      if (hasGps && items.length >= 3) {
+        return `${dayName} Outing`;
+      }
+      return `${dayName} ${timeOfDay}`;
+    }
+
+    const clusters = [];
+    let currentCluster = [rows[0]];
+
+    for (let i = 1; i < rows.length; i++) {
+      const prev = rows[i - 1];
+      const curr = rows[i];
+
+      const prevDate = prev.capture_local.slice(0, 10);
+      const currDate = curr.capture_local.slice(0, 10);
+
+      const prevTime = new Date(prev.capture_local).getTime();
+      const currTime = new Date(curr.capture_local).getTime();
+      const diffHours = Math.abs(prevTime - currTime) / (1000 * 60 * 60);
+
+      const dist = distanceKm(
+        parseFloat(prev.lat),
+        parseFloat(prev.lng),
+        parseFloat(curr.lat),
+        parseFloat(curr.lng),
+      );
+
+      const isNewCluster =
+        prevDate !== currDate ||
+        diffHours > 4.5 ||
+        (dist > 4 && prev.lat && curr.lat);
+
+      if (isNewCluster) {
+        clusters.push(currentCluster);
+        currentCluster = [curr];
+      } else {
+        currentCluster.push(curr);
+      }
+    }
+    if (currentCluster.length) {
+      clusters.push(currentCluster);
+    }
+
+    const moments = clusters.map((items, idx) => {
+      const dateStr = items[0].capture_local.slice(0, 10);
+      const startTime = formatTime(items[items.length - 1].capture_local);
+      const endTime = formatTime(items[0].capture_local);
+      const timeRange =
+        items.length === 1 || startTime === endTime
+          ? endTime
+          : `${startTime} – ${endTime}`;
+
+      const gpsItems = items.filter((p) => p.lat && p.lng);
+      const hasGps = gpsItems.length > 0;
+      let centerLat = null;
+      let centerLng = null;
+      if (hasGps) {
+        centerLat =
+          gpsItems.reduce((acc, p) => acc + parseFloat(p.lat), 0) /
+          gpsItems.length;
+        centerLng =
+          gpsItems.reduce((acc, p) => acc + parseFloat(p.lng), 0) /
+          gpsItems.length;
+      }
+
+      const d = new Date(items[0].capture_local);
+      const dateFormatted = d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+      return {
+        id: `moment-${dateStr}-${idx}`,
+        title: generateMomentTitle(items),
+        date: dateStr,
+        dateFormatted,
+        timeRange,
+        photoCount: items.length,
+        hasGps,
+        centerLat: centerLat ? parseFloat(centerLat.toFixed(4)) : null,
+        centerLng: centerLng ? parseFloat(centerLng.toFixed(4)) : null,
+        photoIds: items.map((p) => p.id),
+        items: items.slice(0, 8).map((p) => ({
+          id: p.id,
+          filename: p.filename,
+          capture_local: p.capture_local,
+          width: p.width,
+          height: p.height,
+          is_new: p.is_new,
+        })),
+      };
+    });
+
+    res.json({ moments });
+  });
   app.get("/api/photos", async (req, res) => {
     let params = [req.user.id];
     let where = [
@@ -104,6 +263,12 @@ export function routes(app) {
       where.push(
         "p.uploader<>$1 AND NOT EXISTS(SELECT 1 FROM photo_views v WHERE v.photo_id=p.id AND v.user_id=$1)",
       );
+    if (req.query.date) {
+      const d = String(req.query.date).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        add("substring(p.capture_local,1,10)=?", d);
+      }
+    }
     if (req.query.cursor) {
       let cursor;
       try {

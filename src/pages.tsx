@@ -15,6 +15,9 @@ import {
   ZoomIn,
   ZoomOut,
   FolderHeart,
+  Sparkles,
+  MapPin,
+  Calendar,
 } from "lucide-react";
 import { api, media, bytes, date, status } from "./api";
 import {
@@ -50,6 +53,10 @@ export function Home({ upload }: { upload: () => void }) {
   const albums = useQuery({
     queryKey: ["albums"],
     queryFn: () => api("/albums"),
+  });
+  const moments = useQuery({
+    queryKey: ["moments"],
+    queryFn: () => api("/moments"),
   });
   const ready =
     photos.data?.items.filter((p: any) => p.status === "ready") || [];
@@ -207,6 +214,54 @@ export function Home({ upload }: { upload: () => void }) {
           </div>
         </section>
       )}
+      {moments.data?.moments?.length > 0 && (
+        <section>
+          <div className="section-title">
+            <h2>Recent Outings & Moments</h2>
+            <Link to="/memories?view=moments">
+              Explore all moments <ArrowRight size={15} />
+            </Link>
+          </div>
+          <div className="cards">
+            {moments.data.moments.slice(0, 3).map((m: any) => (
+              <div
+                className="small-card moment-card-mini"
+                key={m.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (m.items?.[0]) setViewer(m.items[0].id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    if (m.items?.[0]) setViewer(m.items[0].id);
+                  }
+                }}
+              >
+                <span className="badge">
+                  {m.photoCount} {m.photoCount === 1 ? "photograph" : "photographs"}
+                </span>
+                <h3>{m.title}</h3>
+                <p>
+                  {m.dateFormatted} {m.timeRange ? `· ${m.timeRange}` : ""}
+                </p>
+                {m.items?.length > 0 && (
+                  <div className="mini-moment-thumbs">
+                    {m.items.slice(0, 4).map((p: any) => (
+                      <img
+                        key={p.id}
+                        src={media(p.id)}
+                        alt={p.filename}
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {albums.data?.length > 0 && (
         <section>
           <div className="section-title">
@@ -335,6 +390,9 @@ export function Gallery({
   const { albumId } = useParams();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("q") || "");
+  const [viewMode, setViewMode] = useState<"grid" | "moments">(
+    params.get("view") === "moments" ? "moments" : "grid",
+  );
   const [selection, setSelection] = useState<string[]>([]),
     [viewer, setViewer] = useState<string | null>(null),
     [adding, setAdding] = useState(false),
@@ -352,6 +410,12 @@ export function Gallery({
     ...(trash ? { trash: "true" } : {}),
     ...(albumId ? { album: albumId } : {}),
     ...(params.get("new") ? { new: "true" } : {}),
+    ...(params.get("date") ? { date: params.get("date")! } : {}),
+  });
+  const moments = useQuery({
+    queryKey: ["moments"],
+    queryFn: () => api("/moments"),
+    enabled: viewMode === "moments" && !favorites && !trash && !albumId,
   });
   const photos = useInfiniteQuery({
     queryKey: ["photos", query.toString()],
@@ -486,7 +550,54 @@ export function Gallery({
             </button>
           )
         )}
+        {!favorites && !trash && !albumId && (
+          <div className="view-toggle" role="group" aria-label="View mode">
+            <button
+              type="button"
+              className={viewMode === "grid" ? "active" : ""}
+              onClick={() => {
+                setViewMode("grid");
+                setParams((p) => {
+                  p.delete("view");
+                  return p;
+                });
+              }}
+            >
+              Timeline
+            </button>
+            <button
+              type="button"
+              className={viewMode === "moments" ? "active" : ""}
+              onClick={() => {
+                setViewMode("moments");
+                setParams((p) => {
+                  p.set("view", "moments");
+                  return p;
+                });
+              }}
+            >
+              <Sparkles size={13} style={{ marginRight: 4 }} /> Moments & Outings
+            </button>
+          </div>
+        )}
       </div>
+      {params.get("date") && (
+        <div className="filter-pill">
+          <span>Memories from {params.get("date")}</span>
+          <button
+            type="button"
+            aria-label="Clear date filter"
+            onClick={() => {
+              setParams((p) => {
+                p.delete("date");
+                return p;
+              });
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
       {selection.length > 0 && (
         <div className="selection-bar">
           <strong>{selection.length} selected</strong>
@@ -549,7 +660,78 @@ export function Gallery({
           <button onClick={() => setSelection([])}>Clear selection</button>
         </div>
       )}
-      {photos.isPending ? (
+      {viewMode === "moments" && !favorites && !trash && !albumId ? (
+        moments.isPending ? (
+          <Loading />
+        ) : moments.error ? (
+          <Failure error={moments.error} retry={() => moments.refetch()} />
+        ) : !moments.data?.moments?.length ? (
+          <Empty
+            title="No moments collected yet."
+            body="Upload photographs to see them automatically clustered into shared moments and outings."
+          />
+        ) : (
+          <div className="moments-list">
+            {moments.data.moments.map((m: any) => (
+              <div className="moment-card" key={m.id}>
+                <div className="moment-header">
+                  <div>
+                    <div className="moment-eyebrow">
+                      <span>{m.dateFormatted}</span>
+                      {m.timeRange && <span>· {m.timeRange}</span>}
+                      {m.hasGps && (
+                        <span className="gps-badge">
+                          <MapPin size={11} /> Location cluster
+                        </span>
+                      )}
+                    </div>
+                    <h2>{m.title}</h2>
+                  </div>
+                  <div className="moment-actions">
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        setParams((p) => {
+                          p.set("date", m.date);
+                          p.delete("view");
+                          return p;
+                        });
+                        setViewMode("grid");
+                      }}
+                    >
+                      View all {m.photoCount} photos
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        setSelection(m.photoIds);
+                        setAdding(true);
+                      }}
+                    >
+                      <Sparkles size={14} /> Add moment to Studio
+                    </button>
+                  </div>
+                </div>
+                <div className="moment-strip">
+                  {m.items.map((p: any) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="moment-thumb"
+                      onClick={() => setViewer(p.id)}
+                      aria-label={`View photo ${p.filename}`}
+                    >
+                      <img src={media(p.id)} alt={p.filename} loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : photos.isPending ? (
         <Loading />
       ) : photos.error ? (
         <Failure error={photos.error} retry={() => photos.refetch()} />
@@ -681,20 +863,26 @@ export function Gallery({
           ))}
         </div>
       )}
-      <div ref={observer} className="pagination">
-        {photos.hasNextPage && (
-          <button
-            disabled={photos.isFetchingNextPage}
-            onClick={() => photos.fetchNextPage()}
-          >
-            {photos.isFetchingNextPage ? "Loading…" : "More memories"}
-          </button>
-        )}
-      </div>
+      {viewMode === "grid" && (
+        <div ref={observer} className="pagination">
+          {photos.hasNextPage && (
+            <button
+              disabled={photos.isFetchingNextPage}
+              onClick={() => photos.fetchNextPage()}
+            >
+              {photos.isFetchingNextPage ? "Loading…" : "More memories"}
+            </button>
+          )}
+        </div>
+      )}
       {viewer && (
         <PhotoViewer
           id={viewer}
-          items={items}
+          items={
+            viewMode === "moments" && moments.data?.moments
+              ? moments.data.moments.flatMap((m: any) => m.items)
+              : items
+          }
           onNavigate={setViewer}
           onClose={() => setViewer(null)}
         />
@@ -984,6 +1172,23 @@ export function PhotoViewer({
                   </div>
                 ))}
               </dl>
+              <div style={{ marginTop: 12, marginBottom: 16 }}>
+                <Link
+                  className="button ghost"
+                  to={`/memories?date=${p.capture_local.slice(0, 10)}`}
+                  onClick={onClose}
+                  style={{
+                    fontSize: 12,
+                    padding: "8px 12px",
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Sparkles size={14} /> View all memories from this day
+                </Link>
+              </div>
               <ActionForm
                 onSubmit={async (data) => {
                   await api(`/photos/${id}`, "PATCH", data);
