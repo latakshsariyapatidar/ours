@@ -1,0 +1,102 @@
+name: ours
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 5m
+    max-file: '3'
+services:
+  init:
+    image: alpine:3.22
+    command: [sh, /init.sh]
+    volumes:
+      - secrets:/secrets
+      - ${STORAGE_VOLUME:-photos}:/storage
+      - ./deploy/init.sh:/init.sh:ro
+    network_mode: none
+    mem_limit: 32m
+    logging: *logging
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: ours
+      POSTGRES_DB: ours
+      POSTGRES_PASSWORD_FILE: /secrets/db-password
+    command: [postgres, -c, shared_buffers=32MB, -c, work_mem=2MB, -c, maintenance_work_mem=32MB, -c, max_connections=20]
+    volumes:
+      - database:/var/lib/postgresql/data
+      - secrets:/secrets:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U ours -d ours]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 192m
+    shm_size: 64m
+    logging: *logging
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      SECRETS_PATH: /secrets
+      STORAGE_PATH: /storage
+      APP_NAME: ${APP_NAME:-Ours}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_HOURS: ${SESSION_HOURS:-168}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-52428800}
+      MAX_IMAGE_PIXELS: ${MAX_IMAGE_PIXELS:-60000000}
+      MIN_FREE_BYTES: ${MIN_FREE_BYTES:-536870912}
+      TRASH_DAYS: ${TRASH_DAYS:-30}
+      CAROUSEL_LIMIT: ${CAROUSEL_LIMIT:-20}
+    volumes:
+      - ${STORAGE_VOLUME:-photos}:/storage
+      - secrets:/secrets:ro
+    read_only: true
+    tmpfs: ['/tmp:size=32m,noexec,nosuid']
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 384m
+    pids_limit: 80
+    stop_grace_period: 90s
+    logging: *logging
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports: ["${HOST_BIND:-127.0.0.1}:${PORT:-8080}:8080"]
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/api/health]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    mem_limit: 64m
+    logging: *logging
+volumes:
+  database:
+  photos:
+  secrets:
+  caddy_data:
+  caddy_config:

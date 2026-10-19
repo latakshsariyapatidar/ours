@@ -1,0 +1,16 @@
+services:
+  api:
+    environment:
+      APP_URL: https://${DOMAIN:?Set DOMAIN to your DNS hostname}
+      COOKIE_SECURE: 'true'
+  web:
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN to your DNS hostname}
+    ports: !override
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./deploy/Caddyfile.https:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://api:3000/api/health]

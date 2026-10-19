@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-19T06:26:12.939Z",
+  "passed": [
+    "EXIF orientation and stripped preview",
+    "Interrupted/resumed chunks, replay rejection, completion idempotency",
+    "Oversized files, foreign origin and path traversal blocked",
+    "Real HEIC encode/upload/decode and exact preservation",
+    "PNG, WebP, AVIF and GIF actual codec round trips",
+    "24-megapixel image under container memory limit",
+    "Corrupt JPEG fails visibly after bounded retry; original remains downloadable"
+  ],
+  "apiPeakBytes": 193368064,
+  "apiCurrentBytes": 158527488,
+  "apiLimitBytes": 402653184
+}
