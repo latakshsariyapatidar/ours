@@ -159,17 +159,20 @@ function App() {
     [notice, setNotice] = useState(""),
     [dark, setDark] = useState(() => {
       try {
-        return localStorage.getItem("ours-theme") === "dark";
+        const saved = localStorage.getItem("ours-theme-v2");
+        if (saved !== null) return saved === "dark";
+        return true;
       } catch {
-        return false;
+        return true;
       }
     });
   const loc = useLocation();
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     try {
+      localStorage.setItem("ours-theme-v2", dark ? "dark" : "light");
       localStorage.setItem("ours-theme", dark ? "dark" : "light");
-    } catch {}
+    } catch { }
   }, [dark]);
   useEffect(() => {
     if (!notice) return;
@@ -214,11 +217,11 @@ function App() {
             </nav>
             <div className="sidebar-bottom">
               <p>
-                For the big adventures.
+                Made with love by Puppy
                 <br />
-                And the ordinary Tuesdays.
+                for his cute little baby princess bear cub.
               </p>
-              <NavLink to="/settings">
+              <NavLink to="/settings" aria-label="Account settings">
                 <SettingsIcon size={18} /> Settings
               </NavLink>
               <button
@@ -250,13 +253,6 @@ function App() {
                 >
                   {dark ? <Sun size={19} /> : <Moon size={19} />}
                 </button>
-                <Link
-                  to="/settings"
-                  className="avatar"
-                  aria-label="Account settings"
-                >
-                  {state.data.user.name.slice(0, 1)}
-                </Link>
                 <button className="primary" onClick={() => setUpload(true)}>
                   <Plus size={17} /> Add memories
                 </button>
@@ -309,4 +305,4 @@ createRoot(document.getElementById("root")!).render(
   </React.StrictMode>,
 );
 if ("serviceWorker" in navigator)
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  navigator.serviceWorker.register("/sw.js").catch(() => { });

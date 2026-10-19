@@ -59,12 +59,13 @@ test("authenticated library, album form and Studio at desktop and mobile sizes",
     ),
   ).toBeTruthy();
   await page.screenshot({
+    path: "test-results/mobile-dark.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await page.screenshot({
     path: "test-results/mobile-home.png",
     fullPage: true,
   });
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
-  await page.screenshot({
-    path: "test-results/mobile-dark.png",
-    fullPage: true,
-  });
 });
