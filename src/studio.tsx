@@ -4,18 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Plus,
   ArrowRight,
-  ArrowLeft,
-  Check,
   Heart,
   Download,
-  Music,
   ChevronLeft,
   ChevronRight,
   X,
   Star,
   Columns2,
+  Pencil,
+  Check,
 } from "lucide-react";
-import { api, media, status } from "./api";
+import { api, media } from "./api";
 import {
   Page,
   Modal,
@@ -30,21 +29,20 @@ import {
   Confirm,
 } from "./ui";
 import { client, User } from "./main";
+
 export function StudioList() {
   const drafts = useQuery({
     queryKey: ["drafts"],
     queryFn: () => api("/drafts"),
   });
   const [create, setCreate] = useState(false);
-  const nav = useNavigate();
+  const navigate = useNavigate();
   return (
     <Page
-      eyebrow="MADE BY THE TWO OF US"
-      title="Our Studio."
-      description="The choosing, the little debates, the perfect words. This part is ours."
+      title="Our Studio"
       action={
         <button className="primary" onClick={() => setCreate(true)}>
-          <Plus size={17} /> Start a post
+          <Plus size={17} /> New post
         </button>
       }
     >
@@ -54,52 +52,46 @@ export function StudioList() {
         <Failure error={drafts.error} retry={() => drafts.refetch()} />
       ) : !drafts.data.length ? (
         <Empty
-          title="Let’s make something together."
-          body="Start with a handful of favourites. Leave each other little notes. Find the post that feels like us."
-          action={
-            <button className="primary" onClick={() => setCreate(true)}>
-              Our first post <ArrowRight size={16} />
-            </button>
-          }
+          title="No posts yet"
+          body="Choose some photos to start."
+          action={<button onClick={() => setCreate(true)}>New post</button>}
         />
       ) : (
         <div className="album-grid">
-          {drafts.data.map((d: any) => (
-            <Link to={`/studio/${d.id}`} className="draft-card" key={d.id}>
+          {drafts.data.map((draft: any) => (
+            <Link
+              to={"/studio/" + draft.id}
+              className="draft-card"
+              key={draft.id}
+            >
               <div className="album-cover">
-                {d.cover ? (
-                  <img src={media(d.cover)} alt="" />
+                {draft.cover ? (
+                  <img src={media(draft.cover)} alt="" />
                 ) : (
-                  <Heart size={44} />
+                  <Heart size={38} />
                 )}
-                <span className="badge">{status(d.status)}</span>
+                {draft.status === "posted" && (
+                  <span className="badge">Posted</span>
+                )}
               </div>
-              <h2>{d.title}</h2>
-              <p>
-                {d.count} photographs <span>·</span> Open our workspace{" "}
-                <ArrowRight size={15} />
-              </p>
+              <h2>{draft.title}</h2>
+              <p>{draft.count} photos</p>
             </Link>
           ))}
         </div>
       )}
       {create && (
-        <Modal title="Something worth sharing" onClose={() => setCreate(false)}>
+        <Modal title="New post" onClose={() => setCreate(false)}>
           <ActionForm
-            submit="Create our draft"
+            submit="Create post"
             onSubmit={async (data) => {
-              const d = await api("/drafts", "POST", data);
+              const draft = await api("/drafts", "POST", data);
               client.invalidateQueries({ queryKey: ["drafts"] });
-              nav(`/studio/${d.id}`);
+              navigate("/studio/" + draft.id);
             }}
           >
-            <Field
-              label="Give our post a title"
-              name="title"
-              placeholder="That weekend by the sea"
-              required
-            />
-            <NoteField label="A little note to start with" name="notes" />
+            <Field label="Title" name="title" required />
+            <NoteField label="Notes (optional)" name="notes" rows={3} />
           </ActionForm>
         </Modal>
       )}
@@ -110,7 +102,7 @@ export function StudioEditor() {
   const { id } = useParams();
   const query = useQuery({
     queryKey: ["draft", id],
-    queryFn: () => api(`/drafts/${id}`),
+    queryFn: () => api("/drafts/" + id),
     refetchInterval: 15000,
   });
   if (query.isPending) return <Loading />;
@@ -121,23 +113,24 @@ export function StudioEditor() {
   );
 }
 function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
-  const navigate = useNavigate();
-  const [leaving, setLeaving] = useState<string | null>(null);
+  const navigate = useNavigate(),
+    user = useContext(User),
+    notice = useNotice();
   const [edit, setEdit] = useState(initial),
     [dirty, setDirty] = useState(false),
     [saving, setSaving] = useState(false),
-    [error, setError] = useState(""),
-    [preview, setPreview] = useState(false),
+    [error, setError] = useState("");
+  const [preview, setPreview] = useState(false),
     [position, setPosition] = useState(0),
-    [job, setJob] = useState<string | null>(null),
+    [download, setDownload] = useState(false),
+    [renaming, setRenaming] = useState(false);
+  const [job, setJob] = useState<string | null>(null),
+    [leaving, setLeaving] = useState<string | null>(null),
     [reloading, setReloading] = useState(false),
     [comparing, setComparing] = useState(false);
-  const user = useContext(User),
-    notice = useNotice();
-  const users = useQuery({ queryKey: ["users"], queryFn: () => api("/users") });
   const exp = useQuery({
     queryKey: ["export", job],
-    queryFn: () => api(`/exports/${job}`),
+    queryFn: () => api("/exports/" + job),
     enabled: !!job,
     refetchInterval: (q) =>
       ["pending", "processing"].includes(q.state.data?.state) ? 2000 : false,
@@ -146,8 +139,8 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
     if (!dirty) setEdit(initial);
   }, [initial]);
   useEffect(() => {
-    const before = (e: BeforeUnloadEvent) => {
-      if (dirty) e.preventDefault();
+    const before = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
     };
     window.addEventListener("beforeunload", before);
     return () => window.removeEventListener("beforeunload", before);
@@ -171,22 +164,30 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
     return () => document.removeEventListener("click", click, true);
   }, [dirty]);
   function change(key: string, value: any) {
-    setEdit((d: any) => ({ ...d, [key]: value }));
+    setEdit((current: any) => ({ ...current, [key]: value }));
     setDirty(true);
     setError("");
+    setJob(null);
   }
   function reorder(from: number, to: number) {
-    if (to < 0 || to >= edit.photos.length) return;
-    const items = [...edit.photos];
-    const [moved] = items.splice(from, 1);
-    items.splice(to, 0, moved);
-    change("photos", items);
+    if (
+      from < 0 ||
+      from >= edit.photos.length ||
+      to < 0 ||
+      to >= edit.photos.length
+    )
+      return;
+    const photos = [...edit.photos];
+    const [moved] = photos.splice(from, 1);
+    photos.splice(to, 0, moved);
+    change("photos", photos);
   }
-  async function save() {
+  async function persist(overrides: Record<string, unknown> = {}) {
+    if (saving) return false;
     setSaving(true);
     setError("");
     try {
-      await api(`/drafts/${edit.id}`, "PUT", {
+      const value = await api("/drafts/" + edit.id, "PUT", {
         version: edit.version,
         title: edit.title,
         notes: edit.notes,
@@ -194,162 +195,174 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
         hashtags: edit.hashtags,
         ratio: edit.ratio,
         fit: edit.fit,
-        photos: edit.photos.map((p: any) => p.id),
+        photos: edit.photos.map((photo: any) => photo.id),
         status: edit.status,
         post_url: edit.post_url,
+        ...overrides,
       });
+      setEdit((current: any) => ({ ...current, ...value }));
       setDirty(false);
       await refresh();
       client.invalidateQueries({ queryKey: ["drafts"] });
-      notice("Saved for both of you.");
-    } catch (e) {
-      setError((e as Error).message);
+      return true;
+    } catch (error) {
+      setError((error as Error).message);
+      return false;
     } finally {
       setSaving(false);
     }
   }
-  async function approve() {
+  async function prepare() {
+    if (dirty && !(await persist())) return;
     try {
-      await api(`/drafts/${edit.id}/approve`, "POST", {
-        version: edit.version,
-      });
-      await refresh();
-      notice("Your approval is saved.");
-    } catch (e) {
-      setError((e as Error).message);
+      setJob((await api("/drafts/" + edit.id + "/exports", "POST")).id);
+    } catch (error) {
+      setError((error as Error).message);
     }
   }
+  async function copy(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      notice(label + " copied.");
+    } catch {
+      notice("Select the text and copy it manually.");
+    }
+  }
+  const candidates = [
+    ...new Map(
+      [...initial.suggestions, ...edit.photos].map((photo: any) => [
+        photo.photo_id || photo.id,
+        photo,
+      ]),
+    ).values(),
+  ];
   return (
     <Page
-      eyebrow="OUR SHARED WORKSPACE"
       title={edit.title}
-      description="A little of your taste. A little of theirs. Something that’s entirely us."
       action={
         <div className="row">
+          <button
+            className="icon"
+            aria-label="Edit post title"
+            onClick={() => setRenaming(true)}
+          >
+            <Pencil size={17} />
+          </button>
           <button
             onClick={() => setPreview(true)}
             disabled={!edit.photos.length}
           >
-            Preview carousel
+            Preview
           </button>
           <button
             className="primary"
             disabled={!dirty || saving}
-            onClick={save}
+            onClick={async () => {
+              if (await persist()) notice("Saved.");
+            }}
           >
-            {saving
-              ? "Saving…"
-              : dirty
-                ? "Save our changes"
-                : "All changes saved"}
+            {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </button>
         </div>
       }
     >
       <div className="studio-status">
-        <span className="badge">{status(edit.status)}</span>
         <span>
-          {dirty ? "You have unsaved changes" : "Saved for both of you"}
+          {dirty ? "Unsaved changes" : edit.status === "posted" ? "Posted" : ""}
         </span>
         <Link to="/memories">
-          Find more photographs <ArrowRight size={15} />
+          Add photos <Plus size={15} />
         </Link>
       </div>
       {initial.version !== edit.version && dirty && (
         <div className="error-panel">
-          Your partner has saved a newer version. Your local edits are still
-          here. Copy anything you want to keep, then{" "}
+          There are newer changes. Your edits are still here.{" "}
           <button onClick={() => setReloading(true)}>
-            reload their changes
+            View latest version
           </button>
-          .
         </div>
       )}
       {error && (
-        <div role="alert" className="error-panel">
+        <div className="error-panel" role="alert">
           {error}
         </div>
       )}
-      <div className="studio-layout">
+      <div className="studio-layout studio-layout-simple">
         <section className="studio-main">
           <div className="section-title">
-            <div>
-              <h2>Our carousel</h2>
-              <p>The first photograph is your cover.</p>
-            </div>
-            <span>{edit.photos.length} selected</span>
+            <h2>Selected photos</h2>
+            <span>{edit.photos.length}</span>
           </div>
           {!edit.photos.length ? (
             <div className="studio-empty">
-              <Heart size={30} />
-              <p>A story waiting to take shape.</p>
-              <span>Accept a photo from the shortlist below.</span>
+              <Heart size={26} />
+              <p>No photos selected</p>
               <Link to="/memories">
-                Browse our memories <ArrowRight size={15} />
+                Choose photos <ArrowRight size={15} />
               </Link>
             </div>
           ) : (
             <div className="carousel-tray">
-              {edit.photos.map((p: any, i: number) => (
+              {edit.photos.map((photo: any, index: number) => (
                 <article
                   className="carousel-item"
-                  key={p.id}
+                  key={photo.id}
                   draggable
-                  onDragStart={(e) =>
-                    e.dataTransfer.setData("text/plain", String(i))
+                  onDragStart={(event) =>
+                    event.dataTransfer.setData("text/plain", String(index))
                   }
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const from = Number(e.dataTransfer.getData("text/plain"));
-                    if (Number.isInteger(from)) reorder(from, i);
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const from = Number(
+                      event.dataTransfer.getData("text/plain"),
+                    );
+                    if (Number.isInteger(from)) reorder(from, index);
                   }}
                 >
                   <div className="carousel-image">
-                    <img src={media(p.id)} alt={p.filename} />
+                    <img src={media(photo.id)} alt={photo.filename} />
                     <span>
-                      {String(i + 1).padStart(2, "0")}
-                      {i === 0 ? " · Cover" : ""}
+                      {String(index + 1).padStart(2, "0")}
+                      {index === 0 ? " · Cover" : ""}
                     </span>
                   </div>
-                  {p.deleted_at && (
-                    <strong className="form-error">
-                      In Trash — remove or restore
-                    </strong>
+                  {photo.deleted_at && (
+                    <strong className="form-error">In Trash</strong>
                   )}
                   <div className="row">
                     <button
                       className="icon"
-                      aria-label={`Move photo ${i + 1} earlier`}
-                      disabled={i === 0}
-                      onClick={() => reorder(i, i - 1)}
+                      aria-label={"Move photo " + (index + 1) + " earlier"}
+                      disabled={index === 0}
+                      onClick={() => reorder(index, index - 1)}
                     >
                       <ChevronLeft size={17} />
                     </button>
                     <button
                       className="icon"
-                      aria-label={`Move photo ${i + 1} later`}
-                      disabled={i === edit.photos.length - 1}
-                      onClick={() => reorder(i, i + 1)}
+                      aria-label={"Move photo " + (index + 1) + " later"}
+                      disabled={index === edit.photos.length - 1}
+                      onClick={() => reorder(index, index + 1)}
                     >
                       <ChevronRight size={17} />
                     </button>
                     <button
                       className="icon"
-                      aria-label={`Make photo ${i + 1} cover`}
-                      title="Set as cover photo"
-                      disabled={i === 0}
-                      onClick={() => reorder(i, 0)}
+                      aria-label={"Make photo " + (index + 1) + " cover"}
+                      title="Set as cover"
+                      disabled={index === 0}
+                      onClick={() => reorder(index, 0)}
                     >
                       <Star size={16} />
                     </button>
                     <button
                       className="icon"
-                      aria-label={`Remove photo ${i + 1}`}
+                      aria-label={"Remove photo " + (index + 1)}
                       onClick={() =>
                         change(
                           "photos",
-                          edit.photos.filter((x: any) => x.id !== p.id),
+                          edit.photos.filter((p: any) => p.id !== photo.id),
                         )
                       }
                     >
@@ -361,76 +374,73 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
             </div>
           )}
           <div className="section-title">
-            <div>
-              <h2>The maybe pile</h2>
-              <p>
-                Suggestions from both of you. Nothing moves into the carousel
-                until you choose it.
-              </p>
-            </div>
-            {initial.suggestions.length >= 2 && (
-              <button
-                type="button"
-                onClick={() => setComparing(true)}
-              >
-                <Columns2 size={16} /> Compare candidates
+            <h2>Maybe these?</h2>
+            {candidates.length >= 2 && (
+              <button onClick={() => setComparing(true)}>
+                <Columns2 size={16} /> Compare
               </button>
             )}
           </div>
           {!initial.suggestions.length ? (
             <p className="quiet-note">
-              Find a photograph in Memories and choose “Add to Studio” to start
-              your shared shortlist.
+              Photos added from Memories will appear here.
             </p>
           ) : (
             <div className="suggestions">
-              {initial.suggestions.map((s: any) => (
-                <article key={s.photo_id + s.user_id}>
+              {initial.suggestions.map((suggestion: any) => (
+                <article key={suggestion.photo_id + suggestion.user_id}>
                   <img
-                    src={media(s.photo_id)}
-                    alt={s.filename}
+                    src={media(suggestion.photo_id)}
+                    alt={suggestion.filename}
                     loading="lazy"
                   />
                   <div>
-                    <strong>{s.name}’s pick</strong>
-                    <small>{s.filename}</small>
+                    <strong>{suggestion.name}’s pick</strong>
+                    <small>{suggestion.filename}</small>
                     <button
                       disabled={
-                        s.deleted_at ||
-                        s.status !== "ready" ||
-                        edit.photos.some((p: any) => p.id === s.photo_id)
+                        suggestion.deleted_at ||
+                        suggestion.status !== "ready" ||
+                        edit.photos.some(
+                          (photo: any) => photo.id === suggestion.photo_id,
+                        )
                       }
                       onClick={() =>
                         change("photos", [
                           ...edit.photos,
                           {
-                            id: s.photo_id,
-                            filename: s.filename,
-                            status: s.status,
+                            id: suggestion.photo_id,
+                            filename: suggestion.filename,
+                            status: suggestion.status,
                           },
                         ])
                       }
                     >
-                      {edit.photos.some((p: any) => p.id === s.photo_id)
-                        ? "In our carousel"
+                      {edit.photos.some(
+                        (photo: any) => photo.id === suggestion.photo_id,
+                      )
+                        ? "Selected"
                         : "Add to carousel"}
                     </button>
-                    {s.user_id === user.id && (
+                    {suggestion.user_id === user.id && (
                       <button
                         className="ghost"
                         onClick={async () => {
                           try {
                             await api(
-                              `/drafts/${edit.id}/suggestions/${s.photo_id}`,
+                              "/drafts/" +
+                                edit.id +
+                                "/suggestions/" +
+                                suggestion.photo_id,
                               "DELETE",
                             );
                             refresh();
-                          } catch (e) {
-                            notice((e as Error).message);
+                          } catch (error) {
+                            notice((error as Error).message);
                           }
                         }}
                       >
-                        Remove suggestion
+                        Remove
                       </button>
                     )}
                   </div>
@@ -438,139 +448,157 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
               ))}
             </div>
           )}
+          <section className="post-notes">
+            <NoteField
+              label="Notes"
+              value={edit.notes}
+              onChange={(event) => change("notes", event.target.value)}
+              rows={4}
+            />
+          </section>
+        </section>
+        <aside className="studio-side">
           <section className="panel caption-panel">
-            <h2>Find the words.</h2>
+            <h2>Caption</h2>
             <NoteField
-              label="Final caption"
+              label="Caption"
               value={edit.caption}
-              onChange={(e) => change("caption", e.target.value)}
-              rows={6}
+              onChange={(event) => change("caption", event.target.value)}
+              rows={7}
             />
-            <small>{edit.caption.length} characters</small>
-            <NoteField
-              label="Hashtags"
-              value={edit.hashtags}
-              onChange={(e) => change("hashtags", e.target.value)}
-              rows={2}
-            />
-            <div className="row">
+            <div className="caption-meta">
+              <small>{edit.caption.length} characters</small>
               <button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(edit.caption);
-                    notice("Caption copied.");
-                  } catch {
-                    notice("Select the caption text and copy it manually.");
-                  }
-                }}
+                className="ghost"
+                onClick={() => copy(edit.caption, "Caption")}
               >
                 Copy caption
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(edit.hashtags);
-                    notice("Hashtags copied.");
-                  } catch {
-                    notice("Select the hashtags and copy them manually.");
-                  }
-                }}
-              >
+            </div>
+            <details open={!!edit.hashtags}>
+              <summary>Hashtags</summary>
+              <NoteField
+                label="Hashtags"
+                value={edit.hashtags}
+                onChange={(event) => change("hashtags", event.target.value)}
+                rows={2}
+              />
+              <button onClick={() => copy(edit.hashtags, "Hashtags")}>
                 Copy hashtags
               </button>
-            </div>
+            </details>
             <details>
-              <summary>
-                Caption ideas & saved versions ({initial.captions.length})
-              </summary>
-              {initial.captions.map((c: any) => (
-                <div className="comment" key={c.id}>
-                  <strong>{c.name}</strong>
-                  <p>{c.body}</p>
-                  <button onClick={() => change("caption", c.body)}>
-                    Use this caption
+              <summary>Other captions ({initial.captions.length})</summary>
+              {initial.captions.map((caption: any) => (
+                <div className="comment" key={caption.id}>
+                  <strong>{caption.name}</strong>
+                  <p>{caption.body}</p>
+                  <button onClick={() => change("caption", caption.body)}>
+                    Use caption
                   </button>
                 </div>
               ))}
               <ActionForm
-                submit="Suggest a caption"
+                submit="Add caption"
                 onSubmit={async (data) => {
-                  await api(`/drafts/${edit.id}/captions`, "POST", data);
+                  await api("/drafts/" + edit.id + "/captions", "POST", data);
                   refresh();
                 }}
               >
-                <NoteField label="Another way to say it" name="body" />
+                <NoteField label="Caption idea" name="body" rows={3} />
               </ActionForm>
             </details>
           </section>
+          <section className="post-download">
+            <button
+              className="primary"
+              disabled={!edit.photos.length || saving}
+              onClick={() => setDownload(true)}
+            >
+              <Download size={17} /> Download photos
+            </button>
+            <button
+              className="ghost"
+              disabled={saving}
+              onClick={async () => {
+                if (
+                  await persist({
+                    status: edit.status === "posted" ? "collecting" : "posted",
+                  })
+                )
+                  notice(
+                    edit.status === "posted"
+                      ? "Moved back to drafts."
+                      : "Marked as posted.",
+                  );
+              }}
+            >
+              <Check size={15} />
+              {edit.status === "posted"
+                ? "Move back to drafts"
+                : "Mark as posted"}
+            </button>
+          </section>
           <section className="panel">
-            <h2>Little notes to each other</h2>
-            {initial.comments.map((c: any) => (
-              <div className="comment" key={c.id}>
-                <strong>{c.name}</strong>
-                {c.photo_id && <small>About a photograph</small>}
-                <p>{c.body}</p>
+            <h2>Comments</h2>
+            {initial.comments.map((comment: any) => (
+              <div className="comment" key={comment.id}>
+                <strong>{comment.name}</strong>
+                {comment.photo_id && <small>On a photo</small>}
+                <p>{comment.body}</p>
               </div>
             ))}
             <ActionForm
-              submit="Leave a note"
+              submit="Send"
               onSubmit={async (data) => {
-                await api(`/drafts/${edit.id}/comments`, "POST", {
+                await api("/drafts/" + edit.id + "/comments", "POST", {
                   ...data,
                   photo_id: data.photo_id || null,
                 });
                 refresh();
               }}
             >
-              <NoteField label="What are you thinking?" name="body" rows={3} />
-              <Select label="About" name="photo_id">
-                <option value="">The whole post</option>
-                {edit.photos.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {p.filename}
-                  </option>
-                ))}
-              </Select>
+              <NoteField label="Leave a note" name="body" rows={3} />
+              {edit.photos.length > 0 && (
+                <Select label="About" name="photo_id">
+                  <option value="">This post</option>
+                  {edit.photos.map((photo: any) => (
+                    <option key={photo.id} value={photo.id}>
+                      {photo.filename}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </ActionForm>
           </section>
-        </section>
-        <aside className="studio-side">
-          <section className="panel">
-            <span className="eyebrow">THE FINISHING TOUCHES</span>
-            <h2>Our plan</h2>
+        </aside>
+      </div>
+      {renaming && (
+        <Modal title="Edit title" onClose={() => setRenaming(false)}>
+          <ActionForm
+            submit="Save title"
+            onSubmit={async (data) => {
+              if (await persist({ title: data.title })) setRenaming(false);
+            }}
+          >
             <Field
-              label="Post title"
-              value={edit.title}
-              onChange={(e) => change("title", e.target.value)}
+              label="Title"
+              name="title"
+              defaultValue={edit.title}
+              required
             />
-            <NoteField
-              label="Notes"
-              value={edit.notes}
-              onChange={(e) => change("notes", e.target.value)}
-              rows={3}
-            />
+          </ActionForm>
+        </Modal>
+      )}
+      {download && (
+        <Modal title="Download photos" onClose={() => setDownload(false)}>
+          <p>{edit.photos.length} photos in your chosen order.</p>
+          <details>
+            <summary>Size & borders</summary>
             <Select
-              label="Where we are"
-              value={edit.status}
-              onChange={(e: any) => change("status", e.target.value)}
-            >
-              {[
-                "collecting",
-                "ready_to_curate",
-                "final_review",
-                "ready_to_post",
-                "posted",
-                "archived",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {status(s)}
-                </option>
-              ))}
-            </Select>
-            <Select
-              label="Carousel shape"
+              label="Photo size"
               value={edit.ratio}
-              onChange={(e: any) => change("ratio", e.target.value)}
+              onChange={(event: any) => change("ratio", event.target.value)}
             >
               <option value="4:5">Portrait · 4:5</option>
               <option value="3:4">Tall portrait · 3:4</option>
@@ -578,172 +606,41 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
               <option value="1.91:1">Landscape · 1.91:1</option>
             </Select>
             <Select
-              label="How photos fit"
+              label="Borders"
               value={edit.fit}
-              onChange={(e: any) => change("fit", e.target.value)}
+              onChange={(event: any) => change("fit", event.target.value)}
             >
-              <option value="contain">
-                Keep the whole photo · white borders
-              </option>
-              <option value="cover">Fill the frame · centre crop</option>
+              <option value="contain">Keep the whole photo</option>
+              <option value="cover">Crop to fill</option>
             </Select>
-            <p className="hint">
-              Only the export changes. Your originals stay untouched.
-            </p>
-            {edit.status === "posted" && (
-              <Field
-                label="Instagram post URL (optional)"
-                value={edit.post_url}
-                onChange={(e) => change("post_url", e.target.value)}
-              />
-            )}
-          </section>
-          <section className="panel approvals">
-            <Heart size={25} />
-            <h2>Ready, together.</h2>
-            <p>Both of us get the last word.</p>
-            {users.data?.map((u: any) => (
-              <div className="approval" key={u.id}>
-                <span className="avatar">{u.name.slice(0, 1)}</span>
-                <span>
-                  {u.name}
-                  <small>
-                    {initial.approvals.some((a: any) => a.user_id === u.id)
-                      ? "Approved this version"
-                      : "Not approved yet"}
-                  </small>
-                </span>
-                {initial.approvals.some((a: any) => a.user_id === u.id) && (
-                  <Check size={18} />
-                )}
-              </div>
-            ))}
+          </details>
+          <div className="row actions">
             <button
               className="primary"
-              disabled={
-                dirty ||
-                !["final_review", "ready_to_post"].includes(edit.status) ||
-                initial.approvals.some((a: any) => a.user_id === user.id)
-              }
-              onClick={approve}
+              disabled={saving || (exp.isFetching && !!job)}
+              onClick={prepare}
             >
-              Looks like us · Approve
+              {saving ? "Saving…" : "Prepare download"}
             </button>
-            <small>
-              Save changes and move to Final Review first. Changes to photos,
-              order, caption, hashtags or crop clear both approvals.
-            </small>
-          </section>
-          <section className="panel">
-            <h2>
-              <Music size={21} /> A song for this moment
-            </h2>
-            {initial.songs.map((s: any) => (
-              <div className="song" key={s.id}>
-                <strong>{s.title}</strong>
-                <p>{s.artist}</p>
-                {s.link && (
-                  <a href={s.link} target="_blank" rel="noreferrer">
-                    Listen on the original service ↗
-                  </a>
-                )}
-                <small>
-                  {s.name} · {s.notes}
-                </small>
-              </div>
-            ))}
-            <details>
-              <summary>Suggest a song</summary>
-              <ActionForm
-                submit="Add song idea"
-                onSubmit={async (data) => {
-                  await api(`/drafts/${edit.id}/songs`, "POST", data);
-                  refresh();
-                }}
-              >
-                <Field label="Song title" name="title" required />
-                <Field label="Artist" name="artist" />
-                <Field label="Music link (optional)" type="url" name="link" />
-                <NoteField label="Why this one?" name="notes" rows={2} />
-              </ActionForm>
-            </details>
-          </section>
-          <section className="panel">
-            <h2>Take it with you.</h2>
-            <p>
-              Numbered photographs, your caption, and song ideas. Ready for you
-              to post manually.
-            </p>
-            <button
-              className="primary"
-              disabled={
-                dirty || !["ready_to_post", "posted"].includes(edit.status)
-              }
-              onClick={async () => {
-                try {
-                  setJob((await api(`/drafts/${edit.id}/exports`, "POST")).id);
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <Download size={17} /> Prepare our export
-            </button>
-            {job && (
-              <div className="export-state" role="status">
-                {exp.data?.state === "completed" ? (
-                  <a className="button" href={`/api/exports/${job}/download`}>
-                    Download ordered ZIP
-                  </a>
-                ) : exp.data?.state === "failed" ? (
-                  <p>{exp.data.error}</p>
-                ) : (
-                  <p>Preparing photographs, one at a time…</p>
-                )}
-              </div>
+            {exp.data?.state === "completed" && (
+              <a className="button" href={"/api/exports/" + job + "/download"}>
+                Download ZIP
+              </a>
             )}
-            {edit.status === "ready_to_post" && (
-              <div style={{ marginTop: "18px" }}>
-                <ActionForm
-                  submit="Mark as posted to Instagram"
-                  onSubmit={async (data) => {
-                    await api(`/drafts/${edit.id}`, "PUT", {
-                      version: edit.version,
-                      title: edit.title,
-                      notes: edit.notes,
-                      caption: edit.caption,
-                      hashtags: edit.hashtags,
-                      ratio: edit.ratio,
-                      fit: edit.fit,
-                      photos: edit.photos.map((p: any) => p.id),
-                      status: "posted",
-                      post_url: data.post_url || "",
-                    });
-                    setDirty(false);
-                    await refresh();
-                    client.invalidateQueries({ queryKey: ["drafts"] });
-                    notice("Draft marked as posted!");
-                  }}
-                >
-                  <Field
-                    label="Instagram post URL (optional)"
-                    name="post_url"
-                    placeholder="https://www.instagram.com/p/..."
-                    defaultValue={edit.post_url}
-                  />
-                </ActionForm>
-              </div>
-            )}
-          </section>
-        </aside>
-      </div>
+          </div>
+          <div role="status">
+            {job &&
+              ["pending", "processing"].includes(
+                exp.data?.state || "pending",
+              ) && <p>Preparing photos…</p>}
+            {exp.data?.state === "failed" && <p>{exp.data.error}</p>}
+            {exp.error && <p>{exp.error.message}</p>}
+          </div>
+        </Modal>
+      )}
       {preview && (
-        <Modal title="A preview of our post" onClose={() => setPreview(false)}>
+        <Modal title="Preview" onClose={() => setPreview(false)}>
           <div className="instagram-preview">
-            <header>
-              <span className="avatar">♥</span>
-              <strong>Our next little story</strong>
-            </header>
             <div
               style={{
                 aspectRatio: edit.ratio.replace(":", "/"),
@@ -791,9 +688,9 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
       )}
       {reloading && (
         <Confirm
-          title="Reload your partner’s version?"
-          body="Your unsaved changes will be discarded. Copy any text you want to keep before continuing."
-          action="Reload latest version"
+          title="Load the latest changes?"
+          body="Your unsaved edits will be discarded."
+          action="Load latest changes"
           onClose={() => setReloading(false)}
           onConfirm={async () => {
             setEdit(initial);
@@ -803,9 +700,9 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
       )}
       {leaving && (
         <Confirm
-          title="Leave our unsaved changes?"
-          body="Your changes have not been saved for your partner. Stay here to save them, or discard them and leave."
-          action="Discard changes and leave"
+          title="Leave without saving?"
+          body="Your unsaved edits will be discarded."
+          action="Leave without saving"
           onClose={() => setLeaving(null)}
           onConfirm={async () => {
             setDirty(false);
@@ -815,12 +712,9 @@ function Editor({ initial, refresh }: { initial: any; refresh: () => any }) {
       )}
       {comparing && (
         <CompareModal
-          candidates={[...initial.suggestions, ...edit.photos]}
-          carouselIds={edit.photos.map((p: any) => p.id)}
-          onAdd={(photo) => {
-            change("photos", [...edit.photos, photo]);
-            notice("Added to carousel!");
-          }}
+          candidates={candidates}
+          carouselIds={edit.photos.map((photo: any) => photo.id)}
+          onAdd={(photo) => change("photos", [...edit.photos, photo])}
           onClose={() => setComparing(false)}
         />
       )}
@@ -848,14 +742,11 @@ function CompareModal({
   const second = candidates.find((c) => (c.photo_id || c.id) === secondId);
 
   return (
-    <Modal title="Compare candidate photographs" onClose={onClose} wide>
-      <p>
-        Compare two moments side by side before deciding on your final carousel.
-      </p>
+    <Modal title="Compare photos" onClose={onClose} wide>
       <div className="compare-grid">
         <div className="compare-card">
           <Select
-            label="Candidate A"
+            label="First photo"
             value={firstId}
             onChange={(e: any) => setFirstId(e.target.value)}
           >
@@ -899,14 +790,14 @@ function CompareModal({
               >
                 {carouselIds.includes(first.photo_id || first.id)
                   ? "Already in carousel"
-                  : "Add candidate A to carousel"}
+                  : "Add to carousel"}
               </button>
             </>
           )}
         </div>
         <div className="compare-card">
           <Select
-            label="Candidate B"
+            label="Second photo"
             value={secondId}
             onChange={(e: any) => setSecondId(e.target.value)}
           >
@@ -950,7 +841,7 @@ function CompareModal({
               >
                 {carouselIds.includes(second.photo_id || second.id)
                   ? "Already in carousel"
-                  : "Add candidate B to carousel"}
+                  : "Add to carousel"}
               </button>
             </>
           )}

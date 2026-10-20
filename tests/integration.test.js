@@ -211,21 +211,22 @@ test("full two-person photo and Studio lifecycle against a real stack", async ()
     ratio: "4:5",
     fit: "contain",
     photos: [id],
-    status: "final_review",
+    status: "collecting",
     post_url: "",
   };
   assert.equal((await a.call(`/drafts/${d.id}`, "PUT", body)).status, 200);
   assert.equal((await b.call(`/drafts/${d.id}`, "PUT", body)).status, 409);
-  assert.equal((await a.call(`/drafts/${d.id}/exports`, "POST")).status, 409);
   assert.equal(
     (await a.call(`/drafts/${d.id}/approve`, "POST", { version: 2 })).status,
-    200,
+    404,
   );
   assert.equal(
-    (await b.call(`/drafts/${d.id}/approve`, "POST", { version: 2 })).status,
-    200,
+    (await a.call(`/drafts/${d.id}/songs`, "POST", { title: "Removed" }))
+      .status,
+    404,
   );
   const job = (await a.call(`/drafts/${d.id}/exports`, "POST")).data;
+  assert.equal(job.format_version, 2);
   let result;
   for (let i = 0; i < 40; i++) {
     result = (await a.call(`/exports/${job.id}`)).data;
@@ -236,14 +237,15 @@ test("full two-person photo and Studio lifecycle against a real stack", async ()
   const zip = await a.call(`/exports/${job.id}/download`);
   assert.equal(zip.status, 200);
   assert.equal(zip.data.subarray(0, 2).toString(), "PK");
+  assert.equal(zip.data.includes(Buffer.from("songs.txt")), false);
   body = {
     ...body,
     version: 2,
     caption: "A changed caption",
-    status: "final_review",
+    status: "collecting",
   };
   assert.equal((await a.call(`/drafts/${d.id}`, "PUT", body)).status, 200);
-  assert.equal((await a.call(`/drafts/${d.id}`)).data.approvals.length, 0);
+  assert.equal((await a.call(`/drafts/${d.id}`)).data.status, "collecting");
   assert.equal((await a.call(`/exports/${job.id}/download`)).status, 409);
   assert.equal((await a.call(`/photos/${id}`, "DELETE")).status, 200);
   assert.equal((await b.call(`/media/${id}/original`)).status, 404);

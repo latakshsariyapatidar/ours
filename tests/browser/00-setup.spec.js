@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import sharp from "sharp";
 import AxeBuilder from "@axe-core/playwright";
-test("secure setup, invitation, uploads, joint carousel approval and export in two browsers", async ({
+test("secure setup, shared post editing and download without approvals", async ({
   page,
   browser,
   request,
@@ -15,7 +15,16 @@ test("secure setup, invitation, uploads, joint carousel approval and export in t
     : [];
   const token = execFileSync(
     "docker",
-    ["compose", ...composeProject, "exec", "-T", "api", "node", "scripts/admin.js", "setup-token"],
+    [
+      "compose",
+      ...composeProject,
+      "exec",
+      "-T",
+      "api",
+      "node",
+      "scripts/admin.js",
+      "setup-token",
+    ],
     { encoding: "utf8" },
   ).trim();
   await page.goto("/");
@@ -26,7 +35,7 @@ test("secure setup, invitation, uploads, joint carousel approval and export in t
     .getByLabel("Password", { exact: true })
     .fill("ours-integration-password-2026");
   await page
-    .getByRole("button", { name: "Create our home", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Hello, Alex." }),
@@ -43,11 +52,9 @@ test("secure setup, invitation, uploads, joint carousel approval and export in t
     ).violations,
   ).toEqual([]);
   await page.getByRole("link", { name: "Account settings" }).click();
-  await page
-    .getByRole("button", { name: "Create invitation for my person" })
-    .click();
+  await page.getByRole("button", { name: "Create invitation" }).click();
   const invite = await page
-    .getByLabel("Private invitation · valid for 48 hours")
+    .getByLabel("Invitation · valid for 48 hours")
     .inputValue();
   const partnerContext = await browser.newContext();
   const partner = await partnerContext.newPage();
@@ -57,9 +64,7 @@ test("secure setup, invitation, uploads, joint carousel approval and export in t
   await partner
     .getByLabel("Password", { exact: true })
     .fill("ours-integration-password-2026");
-  await partner
-    .getByRole("button", { name: "Join our home", exact: true })
-    .click();
+  await partner.getByRole("button", { name: "Join", exact: true }).click();
   await expect(
     partner.getByRole("heading", { name: "Hello, Sam." }),
   ).toBeVisible();
@@ -108,27 +113,28 @@ test("secure setup, invitation, uploads, joint carousel approval and export in t
     .click();
   await page.getByRole("button", { name: "Move photo 2 earlier" }).click();
   await page
-    .getByLabel("Final caption", { exact: true })
+    .getByLabel("Caption", { exact: true })
     .fill("All the little moments. ♥");
-  await page.getByLabel("Where we are").selectOption("final_review");
-  await page.getByRole("button", { name: "Save our changes" }).click();
-  await expect(
-    page.getByRole("button", { name: "All changes saved" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Looks like us · Approve" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await partner.goto(page.url());
-  await partner
-    .getByRole("button", { name: "Looks like us · Approve" })
-    .click();
-  await expect(partner.locator(".studio-status .badge")).toHaveText(
-    "ready to post",
+  await expect(partner.getByLabel("Caption", { exact: true })).toHaveValue(
+    "All the little moments. ♥",
   );
-  await partner.getByRole("button", { name: "Prepare our export" }).click();
+  await expect(partner.getByRole("button", { name: /approve/i })).toHaveCount(
+    0,
+  );
+  await partner
+    .getByRole("button", { name: "Download photos", exact: true })
+    .click();
+  await partner
+    .getByRole("button", { name: "Prepare download", exact: true })
+    .click();
   await expect(
-    partner.getByRole("link", { name: "Download ordered ZIP" }),
+    partner.getByRole("link", { name: "Download ZIP", exact: true }),
   ).toBeVisible({ timeout: 30000 });
   const download = partner.waitForEvent("download");
-  await partner.getByRole("link", { name: "Download ordered ZIP" }).click();
+  await partner.getByRole("link", { name: "Download ZIP" }).click();
   expect((await download).suggestedFilename()).toBe("ours-carousel.zip");
   await page.reload();
   await page.screenshot({

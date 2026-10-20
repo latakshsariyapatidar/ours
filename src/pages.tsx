@@ -62,31 +62,18 @@ export function Home({ upload }: { upload: () => void }) {
     photos.data?.items.filter((p: any) => p.status === "ready") || [];
   const featured = ready.find((p: any) => p.featured) || ready[0];
   return (
-    <Page
-      eyebrow="A LITTLE SPACE, JUST FOR US"
-      title={`Hello, ${user.name.split(" ")[0]}.`}
-      description="The big adventures. The tiny, beautiful in-betweens."
-    >
-      <div className="section-label">
-        <span>OUR STORY, STILL UNFOLDING</span>
-        <span>
-          {new Date().toLocaleDateString("en-IN", {
-            month: "long",
-            day: "numeric",
-          })}
-        </span>
-      </div>
+    <Page title={`Hello, ${user.name.split(" ")[0]}.`}>
       {photos.isPending ? (
         <Loading />
       ) : photos.error ? (
         <Failure error={photos.error} retry={() => photos.refetch()} />
       ) : !photos.data.items.length ? (
         <Empty
-          title="Every story starts with a moment."
-          body="A blurry first date. A favourite sunset. That ordinary Tuesday. Give your memories a place to call home."
+          title="Our photos"
+          body="Add the first photos here."
           action={
             <button className="primary" onClick={upload}>
-              <Plus size={17} /> Add our first memories
+              <Plus size={17} /> Add photos
             </button>
           }
         />
@@ -100,7 +87,8 @@ export function Home({ upload }: { upload: () => void }) {
                 tabIndex={0}
                 onClick={() => setViewer(featured.id)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") setViewer(featured.id);
+                  if (e.key === "Enter" || e.key === " ")
+                    setViewer(featured.id);
                 }}
               >
                 <img
@@ -108,7 +96,7 @@ export function Home({ upload }: { upload: () => void }) {
                   alt={featured.filename}
                 />
                 <div className="feature-caption">
-                  <span>A MOMENT WORTH KEEPING</span>
+                  <span></span>
                   <h2>{date(featured.capture_local)}</h2>
                   <span>
                     View this memory <ArrowRight size={16} />
@@ -117,28 +105,13 @@ export function Home({ upload }: { upload: () => void }) {
               </div>
             ) : (
               <Empty
-                title="Making room for your memories."
-                body="Your originals are safe. Previews are being prepared."
+                title="Preparing photos"
+                body="Your photos will appear here shortly."
               />
             )}
-            <aside className="studio-invite">
-              <span className="eyebrow">OUR STUDIO</span>
-              <h2>
-                Some things are
-                <br />
-                better <em>together.</em>
-              </h2>
-              <p>
-                Pick a few favourites. Find the words. Make something that feels
-                like us.
-              </p>
-              <Link className="button" to="/studio">
-                Let's make a post <ArrowRight size={16} />
-              </Link>
-            </aside>
           </section>
           <div className="section-title">
-            <h2>Recently added to our story</h2>
+            <h2>Recent photos</h2>
             <Link to="/memories">
               See all <ArrowRight size={15} />
             </Link>
@@ -165,7 +138,7 @@ export function Home({ upload }: { upload: () => void }) {
       {day.data?.items.length > 0 && (
         <section>
           <div className="section-title">
-            <h2>On this day, once upon a time</h2>
+            <h2>On this day</h2>
           </div>
           <div className="mini-grid">
             {day.data.items.slice(0, 5).map((p: any) => (
@@ -189,7 +162,7 @@ export function Home({ upload }: { upload: () => void }) {
       {drafts.data?.some((d: any) => d.status !== "archived") && (
         <section>
           <div className="section-title">
-            <h2>Where we left off</h2>
+            <h2>Posts we’re picking</h2>
             <Link to="/studio">
               Our Studio <ArrowRight size={15} />
             </Link>
@@ -200,15 +173,11 @@ export function Home({ upload }: { upload: () => void }) {
               .slice(0, 3)
               .map((d: any) => (
                 <Link className="small-card" key={d.id} to={`/studio/${d.id}`}>
-                  <span
-                    className={`badge ${d.status === "final_review" ? "badge-highlight" : ""}`}
-                  >
-                    {d.status === "final_review"
-                      ? "Ready for joint review ♥"
-                      : status(d.status)}
+                  <span className="badge">
+                    {d.status === "posted" ? "Posted" : "Draft"}
                   </span>
                   <h3>{d.title}</h3>
-                  <p>{d.count} photographs · Keep creating together</p>
+                  <p>{d.count} photos</p>
                 </Link>
               ))}
           </div>
@@ -217,9 +186,9 @@ export function Home({ upload }: { upload: () => void }) {
       {moments.data?.moments?.length > 0 && (
         <section>
           <div className="section-title">
-            <h2>Recent Outings & Moments</h2>
+            <h2>Days out</h2>
             <Link to="/memories?view=moments">
-              Explore all moments <ArrowRight size={15} />
+              See all <ArrowRight size={15} />
             </Link>
           </div>
           <div className="cards">
@@ -239,7 +208,8 @@ export function Home({ upload }: { upload: () => void }) {
                 }}
               >
                 <span className="badge">
-                  {m.photoCount} {m.photoCount === 1 ? "photograph" : "photographs"}
+                  {m.photoCount}{" "}
+                  {m.photoCount === 1 ? "photograph" : "photographs"}
                 </span>
                 <h3>{m.title}</h3>
                 <p>
@@ -265,7 +235,7 @@ export function Home({ upload }: { upload: () => void }) {
       {albums.data?.length > 0 && (
         <section>
           <div className="section-title">
-            <h2>Our chapters</h2>
+            <h2>Albums</h2>
             <Link to="/albums">
               Browse {albums.data.length} albums <ArrowRight size={15} />
             </Link>
@@ -278,7 +248,7 @@ export function Home({ upload }: { upload: () => void }) {
                 </span>
                 <h3>{a.title}</h3>
                 <p>
-                  {a.description || (a.location ? `In ${a.location}` : "Open this chapter")}{" "}
+                  {a.description || (a.location ? `In ${a.location}` : "")}{" "}
                   <ArrowRight size={13} />
                 </p>
               </Link>
@@ -317,7 +287,7 @@ export function AddTo({
   const notice = useNotice();
   return (
     <Modal
-      title={`Keep ${ids.length} ${ids.length === 1 ? "moment" : "moments"} together`}
+      title={`Add ${ids.length} ${ids.length === 1 ? "photo" : "photos"}`}
       onClose={onClose}
     >
       <ActionForm
@@ -341,9 +311,7 @@ export function AddTo({
           );
           client.invalidateQueries();
           notice(
-            kind === "draft"
-              ? "Added to your shared shortlist."
-              : "Added to the album.",
+            kind === "draft" ? "Added to the post." : "Added to the album.",
           );
           onClose();
         }}
@@ -356,15 +324,15 @@ export function AddTo({
             setTarget("");
           }}
         >
-          <option value="draft">Our Studio shortlist</option>
+          <option value="draft">A post</option>
           <option value="album">An album</option>
         </Select>
         <Select
-          label={kind === "draft" ? "Studio draft" : "Album"}
+          label={kind === "draft" ? "Post" : "Album"}
           value={target}
           onChange={(e: any) => setTarget(e.target.value)}
         >
-          <option value="">Create something new</option>
+          <option value="">Create new</option>
           {(kind === "draft" ? drafts.data : albums.data)?.map((a: any) => (
             <option value={a.id} key={a.id}>
               {a.title}
@@ -372,10 +340,6 @@ export function AddTo({
           ))}
         </Select>
         {!target && <Field label="Title" name="title" required />}
-        <p className="hint">
-          Studio photos begin as suggestions. Your partner’s final arrangement
-          stays intact.
-        </p>
       </ActionForm>
     </Modal>
   );
@@ -458,24 +422,15 @@ export function Gallery({
   }
   return (
     <Page
-      eyebrow={
-        albumId
-          ? "ONE CHAPTER OF US"
-          : favorites
-            ? "THE ONES WE LOVE MOST"
-            : "A LIFE, COLLECTED"
-      }
       title={
         trash
-          ? "A little breathing room."
-          : album?.title ||
-            (favorites ? "Close to our hearts." : "Our memories.")
+          ? "Trash"
+          : album?.title || (favorites ? "Favourites" : "Memories")
       }
       description={
         trash
-          ? "Photos stay here for the configured retention period before permanent deletion."
-          : album?.description ||
-            "Every place. Every season. Every version of us."
+          ? "Deleted photos can be restored here."
+          : album?.description || undefined
       }
       action={
         album && <button onClick={() => setEditAlbum(true)}>Edit album</button>
@@ -576,7 +531,8 @@ export function Gallery({
                 });
               }}
             >
-              <Sparkles size={13} style={{ marginRight: 4 }} /> Moments & Outings
+              <Sparkles size={13} style={{ marginRight: 4 }} /> Moments &
+              Outings
             </button>
           </div>
         )}
@@ -606,7 +562,9 @@ export function Gallery({
               <button
                 onClick={() =>
                   act(async () => {
-                    await api("/photos/bulk-restore", "POST", { ids: selection });
+                    await api("/photos/bulk-restore", "POST", {
+                      ids: selection,
+                    });
                     setSelection([]);
                     notice(`Restored ${selection.length} memories.`);
                   })
@@ -667,8 +625,8 @@ export function Gallery({
           <Failure error={moments.error} retry={() => moments.refetch()} />
         ) : !moments.data?.moments?.length ? (
           <Empty
-            title="No moments collected yet."
-            body="Upload photographs to see them automatically clustered into shared moments and outings."
+            title="No days out yet"
+            body="Photos from the same day will appear together here."
           />
         ) : (
           <div className="moments-list">
@@ -739,10 +697,10 @@ export function Gallery({
         <Empty
           title={
             trash
-              ? "Nothing left behind."
+              ? "Trash is empty"
               : favorites
-                ? "The ones you’ll come back to."
-                : "A place for every memory."
+                ? "No favourites yet"
+                : "No photos here yet"
           }
           body={
             search
@@ -750,8 +708,8 @@ export function Gallery({
               : trash
                 ? "Your trash is empty."
                 : favorites
-                  ? "Tap the heart on a photograph to keep it close."
-                  : "Add photographs to your library, then collect them here."
+                  ? "Tap a photo’s heart to add it here."
+                  : "Add photos from Memories."
           }
           action={
             <Link className="button" to="/memories">
@@ -947,8 +905,7 @@ function formatMetadata(metadata: any) {
   }
   if (metadata.ExposureTime != null) {
     const exp = Number(metadata.ExposureTime);
-    const expStr =
-      exp < 1 && exp > 0 ? `1/${Math.round(1 / exp)}s` : `${exp}s`;
+    const expStr = exp < 1 && exp > 0 ? `1/${Math.round(1 / exp)}s` : `${exp}s`;
     items.push({ label: "Shutter speed", value: expStr });
   }
   if (metadata.ISO != null) {
@@ -1142,7 +1099,7 @@ export function PhotoViewer({
           </div>
           {details && (
             <section className="photo-details">
-              <h3>The story behind the photograph</h3>
+              <h3>Photo details</h3>
               <dl>
                 <dt>Taken</dt>
                 <dd>
@@ -1225,7 +1182,7 @@ export function PhotoViewer({
                   ? "Remove from featured memories"
                   : "Feature on our home page"}
               </button>
-              <h3>A note on this moment</h3>
+              <h3>Comments</h3>
               {p.comments.map((c: any) => (
                 <div className="comment" key={c.id}>
                   <div className="comment-header">
@@ -1252,7 +1209,7 @@ export function PhotoViewer({
       {remove && (
         <Confirm
           title="Move this memory to Trash?"
-          body="You can restore it during the retention period. Studio approvals using this photo will be cleared."
+          body="You can restore it from Trash before it is permanently deleted."
           action="Move to Trash"
           onClose={() => setRemove(false)}
           onConfirm={async () => {
@@ -1272,10 +1229,7 @@ function AlbumEditor({ album, onClose }: { album?: any; onClose: () => void }) {
     enabled: !!album,
   });
   return (
-    <Modal
-      title={album ? "Edit our chapter" : "A new chapter"}
-      onClose={onClose}
-    >
+    <Modal title={album ? "Edit album" : "New album"} onClose={onClose}>
       <ActionForm
         submit={album ? "Save album" : "Create album"}
         onSubmit={async (data) => {
@@ -1295,7 +1249,7 @@ function AlbumEditor({ album, onClose }: { album?: any; onClose: () => void }) {
           required
         />
         <NoteField
-          label="A few words about it"
+          label="Description"
           name="description"
           defaultValue={album?.description}
         />
@@ -1337,9 +1291,7 @@ export function Albums() {
     [remove, setRemove] = useState<any>(null);
   return (
     <Page
-      title="The chapters of us."
-      eyebrow="OUR ALBUMS"
-      description="Some memories belong together."
+      title="Albums"
       action={
         <button className="primary" onClick={() => setCreate(true)}>
           <Plus size={17} /> New album
@@ -1352,13 +1304,9 @@ export function Albums() {
         <Failure error={albums.error} retry={() => albums.refetch()} />
       ) : !albums.data.length ? (
         <Empty
-          title="Give a chapter a name."
-          body="A weekend away. An entire summer. All the ordinary days in between."
-          action={
-            <button onClick={() => setCreate(true)}>
-              Create our first album
-            </button>
-          }
+          title="No albums yet"
+          body="Create an album for photos you want to keep together."
+          action={<button onClick={() => setCreate(true)}>New album</button>}
         />
       ) : (
         <div className="album-grid">
@@ -1407,69 +1355,79 @@ export function Albums() {
 export function Settings({ refresh }: { refresh: () => void }) {
   const user = useContext(User),
     notice = useNotice();
+  const members = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api("/users"),
+  });
   const system = useQuery({
     queryKey: ["system"],
     queryFn: () => api("/system"),
     refetchInterval: 30000,
   });
+  const auth = useQuery({
+    queryKey: ["auth"],
+    queryFn: () => api("/auth/state"),
+  });
   const [invite, setInvite] = useState("");
   return (
-    <Page
-      title="Make yourself at home."
-      eyebrow="SETTINGS"
-      description="A few things to keep our little corner running smoothly."
-    >
+    <Page title="Settings">
       <div className="settings-grid">
         <section className="panel">
-          <h2>Our people</h2>
-          <p>
-            Signed in as {user.name}
-            <br />
-            <small>{user.email}</small>
-          </p>
-          {user.owner && (
+          <h2>Us</h2>
+          {members.data?.map((member: any) => (
+            <div className="household-member" key={member.id}>
+              <span className="avatar">{member.name.slice(0, 1)}</span>
+              <span>{member.name}</span>
+            </div>
+          ))}
+          {user.owner && members.data?.length === 1 && (
             <>
               <button
                 onClick={async () => {
                   try {
                     const result = await api("/invitations", "POST");
-                    setInvite(`${location.origin}/#invite=${result.token}`);
-                  } catch (e) {
-                    notice((e as Error).message);
+                    setInvite(location.origin + "/#invite=" + result.token);
+                  } catch (error) {
+                    notice((error as Error).message);
                   }
                 }}
               >
-                Create invitation for my person
+                Create invitation
               </button>
               {invite && (
                 <label className="field">
-                  <span>Private invitation · valid for 48 hours</span>
+                  <span>Invitation · valid for 48 hours</span>
                   <input
                     readOnly
                     value={invite}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(event) => event.target.select()}
                   />
                 </label>
               )}
+            </>
+          )}
+          {user.owner && (
+            <details>
+              <summary>Edit site name</summary>
               <ActionForm
                 onSubmit={async (data) => {
                   await api("/settings", "PUT", data);
                   refresh();
-                  notice("Your home has a new name.");
+                  notice("Saved.");
                 }}
               >
                 <Field
-                  label="Name of our space"
+                  label="Site name"
                   name="name"
                   required
-                  defaultValue="Ours"
+                  defaultValue={auth.data?.name || "Ours"}
                 />
               </ActionForm>
-            </>
+            </details>
           )}
         </section>
         <section className="panel">
-          <h2>A little housekeeping</h2>
+          <h2>Storage</h2>
           {system.isPending ? (
             <Loading />
           ) : system.error ? (
@@ -1478,7 +1436,7 @@ export function Settings({ refresh }: { refresh: () => void }) {
             <>
               <p className="storage-number">
                 {bytes(system.data.storage.available)}
-                <span> available</span>
+                <span> free</span>
               </p>
               <progress
                 max={system.data.storage.capacity}
@@ -1490,79 +1448,36 @@ export function Settings({ refresh }: { refresh: () => void }) {
               {system.data.storage.available <
                 system.data.storage.reserve * 2 && (
                 <p role="alert">
-                  Storage is getting low. Make an external backup and free space
-                  before your next upload.
+                  Storage is almost full. Free some space before adding more
+                  photos.
                 </p>
               )}
-              <dl>
-                {[
-                  "originals",
-                  "thumbnails",
-                  "previews",
-                  "temporary",
-                  "exports",
-                  "database",
-                ].map((k) => (
-                  <div className="detail-pair" key={k}>
-                    <dt>{k}</dt>
-                    <dd>{bytes(system.data.storage[k])}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p>Trash is kept for {system.data.trashDays} days.</p>
+              <details>
+                <summary>Storage details</summary>
+                <dl>
+                  {[
+                    "originals",
+                    "thumbnails",
+                    "previews",
+                    "temporary",
+                    "exports",
+                    "database",
+                  ].map((key) => (
+                    <div className="detail-pair" key={key}>
+                      <dt>{key}</dt>
+                      <dd>{bytes(system.data.storage[key])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+              <p>
+                Deleted photos stay in Trash for {system.data.trashDays} days.
+              </p>
               <Link className="button" to="/trash">
                 <Trash2 size={16} /> Open Trash
               </Link>
-              <h3>Preparing memories</h3>
-              {system.data.jobs.map((j: any) => (
-                <p key={j.state}>
-                  {status(j.state)}: {j.count}
-                </p>
-              ))}
             </>
           )}
-        </section>
-        <section className="panel">
-          <h2>Change password</h2>
-          <ActionForm
-            submit="Change password & sign out"
-            onSubmit={async (data) => {
-              await api("/auth/password", "POST", data);
-              client.clear();
-              refresh();
-            }}
-          >
-            <Field
-              label="Current password"
-              name="current"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
-            <Field
-              label="New password"
-              name="password"
-              type="password"
-              required
-              minLength={12}
-              autoComplete="new-password"
-            />
-          </ActionForm>
-        </section>
-        <section className="panel">
-          <h2>Safe, and close to home.</h2>
-          <p>
-            Your photographs stay on your own server. Originals keep their
-            metadata. Studio exports remove private metadata.
-          </p>
-          <p>
-            Make encrypted backups on another device. Your deployment guide
-            includes backup, restore, and account recovery commands.
-          </p>
-          <p>
-            On a phone, use your browser’s “Add to Home Screen” option over
-            HTTPS to keep Ours close.
-          </p>
         </section>
       </div>
     </Page>

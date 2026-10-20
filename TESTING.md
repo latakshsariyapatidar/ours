@@ -1,5 +1,28 @@
 # Ours — Verification and Testing Report
 
+## Personal refinement — 20 October 2026
+
+This is the current workflow described in PERSONAL-DIRECTION.md. The historical report below covers the earlier approval/song workflow and does not describe the present interface.
+
+Verified for this change:
+
+- TypeScript and production Vite build: passed, including the Docker frontend build.
+- Unit suite: 8 passed.
+- Real-stack integration: passed. Either person can export a saved draft without approvals; retired approval/song endpoints return 404; ZIP format 2 has no songs.txt; stale packages remain inaccessible after edits.
+- Fresh-home browser scenario: passed setup, invitation, uploads, selecting/reordering, shared caption visibility and ZIP download without approval.
+- Desktop/mobile browser scenario: passed gallery, metadata, album creation, caption editing and theme switching.
+- Personal-interface browser scenario: passed preservation of existing notes across saves/reloads, unsaved-edit recovery, absence of removed copy/cards, mobile settings access, and no horizontal overflow. Axe reported zero violations in the checked dark Studio and light Favourites screens after correcting the theme-transition contrast issue.
+- Design token lint: zero errors or warnings. Strict project UI audit: zero findings.
+- Existing local deployment: rebuilt and all three services healthy. The database fingerprint of original photo hashes and saved post titles, notes and captions matched before and after the update.
+
+Browser tests ran only in isolated Compose projects on ports 18083/18084. No test accounts or sample photos were added to the existing home on port 8090. The updated UI was visually inspected in desktop dark/light and mobile layouts. Photos, notes and captions from the existing home were not rewritten.
+
+The change adds a non-destructive export-format column so an old ZIP containing the retired song attachment is not reused. Legacy song/approval records remain in their tables, with no active UI or API.
+
+---
+
+## Historical initial-build report
+
 This document records the testing strategy, executed verification suites, performance measurements, and release-readiness evaluation for **Ours**.
 
 Testing was conducted directly against a live Docker Compose stack with persistent PostgreSQL, the Node.js API with worker, Caddy reverse proxy, and real browsers under memory-constrained conditions mimicking the Oracle Cloud VM.Standard.E2.1.Micro target (1 GB RAM, x86-64 Linux).

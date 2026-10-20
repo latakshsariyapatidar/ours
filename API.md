@@ -19,7 +19,7 @@ Base `/api`, JSON requests/responses except media, upload chunks and ZIP. Errors
 | PATCH /photos/:id | capture_local?, featured? | normalized correction |
 | PUT /photos/:id/favorite | favorite:boolean | idempotent favorite state |
 | POST /photos/:id/comments | body | comment |
-| DELETE /photos/:id | — | soft delete and invalidate approvals |
+| DELETE /photos/:id | — | soft delete and invalidate stale draft downloads |
 | POST /photos/:id/restore | — | restore |
 | DELETE /photos/:id/permanent | — | permanent deletion, Trash only |
 | POST /photos/bulk-trash | ids | soft delete multiple photos |
@@ -47,11 +47,9 @@ Base `/api`, JSON requests/responses except media, upload chunks and ZIP. Errors
 | DELETE /drafts/:id/suggestions/:photo | — | remove own suggestion |
 | POST /drafts/:id/comments | body, photo_id? | note |
 | POST /drafts/:id/captions | body | caption idea |
-| POST /drafts/:id/songs | title, artist?, link?, notes? | suggestion only |
-| POST /drafts/:id/approve | version | approve current version |
 | POST /drafts/:id/exports | — | queued job, reuses active same-version job |
 | GET /exports/:id | — | job state |
-| GET /exports/:id/download | — | current approved ZIP |
+| GET /exports/:id/download | — | current-version ZIP |
 | GET /system | — | storage, jobs, limits |
 | PUT /settings | name | owner-only application name |
 

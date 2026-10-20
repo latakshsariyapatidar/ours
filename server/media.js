@@ -182,18 +182,6 @@ export async function makeExport(job) {
       `${dir}/caption.txt`,
       [draft.caption, draft.hashtags].filter(Boolean).join("\n\n"),
     );
-    const songs = (
-      await q(
-        "SELECT title,artist,link,notes FROM song_suggestions WHERE draft_id=$1",
-        [draft.id],
-      )
-    ).rows;
-    await fs.writeFile(
-      `${dir}/songs.txt`,
-      songs
-        .map((s) => `${s.title} — ${s.artist}\n${s.link}\n${s.notes}`)
-        .join("\n\n"),
-    );
     const archive = archiver("zip", { zlib: { level: 1 } });
     const completed = pipeline(
       archive,

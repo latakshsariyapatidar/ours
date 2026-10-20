@@ -30,7 +30,7 @@ Then open localhost:8080 on your computer. Public access requires your own domai
 - Albums reference photographs without copying files. Deleting an album leaves photographs intact.
 - Favorite independently, or browse favorites shared by both people.
 - Add photographs to a Studio shortlist, then accept them into the carousel. Drag to reorder on desktop, or use the earlier/later controls on touch devices and keyboards.
-- Save the final selection and caption, choose Final Review, and approve with both accounts. A material edit clears approvals. Prepare a ZIP, copy your caption, then publish manually in Instagram.
+- Save the selection and caption, then choose Download photos. Either person can download the ordered ZIP without an approval step. Size and borders are optional controls inside the download dialog. Copy your caption and publish manually in Instagram.
 - Trash is recoverable for 30 days by default. After retention it is permanently deleted. Back up irreplaceable originals elsewhere.
 
 ## Architecture
@@ -59,7 +59,7 @@ server/
   db.js, schema.sql    PostgreSQL connection and idempotent migrations
   uploads.js           chunk protocol, streaming, hash deduplication
   media.js             metadata, HEIC conversion, previews, ZIP exports
-  routes.js            library, albums, Studio, approvals, settings
+  routes.js            library, albums, Studio, downloads, settings
   worker.js            durable jobs, retry, retention, crash reconciliation
   core.js              pure domain validation helpers
 deploy/                Caddy HTTP/HTTPS configuration and bootstrap

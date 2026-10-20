@@ -1,12 +1,12 @@
 :root {
-  --background: #211e1d;
-  --surface: #2b2725;
-  --text: #f2eae1;
-  --muted: #beb3a7;
-  --border: #4d4540;
-  --soft: #37302d;
-  --primary: #c58388;
-  --on-primary: #211e1d;
+  --background: #191822;
+  --surface: #22212e;
+  --text: #efedf6;
+  --muted: #b5afc6;
+  --border: #3b374d;
+  --soft: #2e2a3b;
+  --primary: #c5afe6;
+  --on-primary: #241d31;
   --danger: #ffaaaa;
   --radius: 8px;
   --font-body: Arial, sans-serif;
@@ -21,25 +21,25 @@
   scrollbar-gutter: stable;
 }
 :root[data-theme="dark"] {
-  --background: #211e1d;
-  --surface: #2b2725;
-  --text: #f2eae1;
-  --muted: #beb3a7;
-  --border: #4d4540;
-  --soft: #37302d;
-  --primary: #c58388;
-  --on-primary: #211e1d;
+  --background: #191822;
+  --surface: #22212e;
+  --text: #efedf6;
+  --muted: #b5afc6;
+  --border: #3b374d;
+  --soft: #2e2a3b;
+  --primary: #c5afe6;
+  --on-primary: #241d31;
   --danger: #ffaaaa;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --primary: #934f55;
-  --background: #f7f4ef;
+  --primary: #73578f;
+  --background: #f6f4fa;
   --surface: #ffffff;
-  --text: #302d2a;
-  --muted: #756e66;
-  --border: #ddd6cc;
-  --soft: #eee7df;
+  --text: #302b3b;
+  --muted: #706779;
+  --border: #ddd6e7;
+  --soft: #ebe5f3;
   --danger: #aa3030;
   --on-primary: #fff;
   color-scheme: light;
@@ -100,9 +100,7 @@ button,
   cursor: pointer;
   font-weight: 500;
   text-align: center;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
+  transition: opacity 0.15s;
 }
 button:hover,
 .button:hover {
@@ -607,7 +605,9 @@ main#main-content {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 .moment-card:hover {
   border-color: var(--primary);
@@ -1371,49 +1371,6 @@ summary {
   min-height: 32px;
   padding: 5px 0;
 }
-.approval {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 20px 0;
-  font-size: 12px;
-}
-.approval small {
-  font-size: 10px;
-}
-.approval svg {
-  color: var(--primary);
-  margin-left: auto;
-}
-.approvals > .primary {
-  width: 100%;
-}
-.approvals > small {
-  margin-top: 12px;
-  font-size: 10px;
-  line-height: 1.7;
-}
-.approvals > svg {
-  color: var(--primary);
-  margin-bottom: 10px;
-}
-.song {
-  border-bottom: 1px solid var(--border);
-  padding: 13px 0;
-  font-size: 13px;
-}
-.song p {
-  margin: 0;
-  font-size: 12px;
-}
-.song small {
-  font-size: 10px;
-  margin-top: 6px;
-}
-.song a {
-  font-size: 11px;
-  color: var(--primary);
-}
 .instagram-preview header {
   display: flex;
   gap: 12px;
@@ -1876,6 +1833,97 @@ summary {
   }
   .photo-details dl {
     grid-template-columns: 1fr 1.5fr;
+  }
+}
+.topbar-name {
+  font: italic 27px var(--font-display);
+  letter-spacing: -1px;
+  color: var(--primary);
+}
+.account-link {
+  display: none;
+}
+.sidebar nav {
+  margin-top: 44px;
+}
+.home-feature {
+  grid-template-columns: 1fr;
+}
+.feature-caption > span:empty {
+  display: none;
+}
+.home-feature-link {
+  max-height: 520px;
+}
+.studio-layout-simple {
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+}
+.studio-layout-simple .section-title:first-child {
+  margin-top: 0;
+}
+.studio-layout-simple .caption-panel {
+  margin-top: 0;
+}
+.post-notes {
+  margin-top: 28px;
+}
+.post-download {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 26px;
+}
+.caption-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.caption-meta button {
+  font-size: 12px;
+}
+.household-member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+.studio-status:has(> span:empty) > span {
+  display: none;
+}
+.studio-status {
+  min-height: 28px;
+}
+.studio-status > a {
+  margin-left: auto;
+}
+.settings-grid {
+  max-width: 920px;
+}
+@media (max-width: 850px) {
+  .account-link {
+    display: inline-flex;
+  }
+  .studio-layout-simple {
+    grid-template-columns: 1fr;
+  }
+  .studio-layout-simple .studio-side {
+    display: block;
+  }
+}
+@media (max-width: 600px) {
+  .account-link {
+    display: inline-flex;
+  }
+  .sidebar nav {
+    margin-top: 0;
+  }
+  .sidebar nav a {
+    min-height: 60px;
+  }
+  .topbar-name {
+    font-size: 27px;
+  }
+  .studio-status > a {
+    flex-basis: auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {

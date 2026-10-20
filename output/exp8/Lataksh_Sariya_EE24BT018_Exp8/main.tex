@@ -1,0 +1,135 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=22mm]{geometry}
+\usepackage{amsmath,graphicx,booktabs,caption}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\newcommand{\scope}[3]{\begin{center}\includegraphics[width=#2\linewidth]{images/photo#1.jpg}\captionof{figure}{#3}\end{center}}
+\begin{document}
+\begin{center}
+EE606L: Design of Power Converters\\
+{\Large\bfseries Laboratory Report -- Experiment 8}\\[3pt]
+{\large\bfseries Design and Implementation of a Buck Converter}
+\end{center}
+\vspace{3mm}
+\textbf{Name:} Lataksh Sariya\hfill\textbf{Roll No.:} EE24BT018
+
+\section{Objective}
+To design a buck converter for a 10 V output using a TL494 PWM module and an IRF540N MOSFET, and to observe its switching and output-voltage waveforms on an oscilloscope.
+
+\section{Specifications and Components}
+$V_{in}=15$--25 V, $V_{nom}=20$ V, $V_o=10$ V, $f_s=25$ kHz and $P_o=100$ W. The specified peak-to-peak ripples are $\Delta I_L=0.2$ A and $\Delta V_o=0.1$ V. The circuit uses an IRF540N, a fast recovery diode, a $5\,\Omega$ gate resistor and a $1\,\mathrm{k}\Omega$ gate pull-down resistor. The inductor used in the experiment was $0.95$ mH. Measurements were recorded on a Tektronix TBS1072C oscilloscope.
+
+\section{Circuit Diagram}
+\begin{center}
+\setlength{\unitlength}{0.95pt}
+\begin{picture}(440,180)
+\put(35,160){\line(1,0){222}}
+\qbezier(257,160)(257,176)(269,176)\qbezier(269,176)(281,176)(281,160)
+\qbezier(281,160)(281,176)(293,176)\qbezier(293,176)(305,176)(305,160)
+\put(305,160){\line(1,0){105}}
+\put(35,160){\line(0,-1){60}}
+\put(24,100){\line(1,0){22}}\put(29,93){\line(1,0){12}}
+\put(35,93){\line(0,-1){68}}
+\put(35,25){\line(1,0){157}}\put(192,25){\circle*{3}}
+\put(192,25){\line(2,1){26}}\put(225,25){\circle*{3}}
+\put(225,25){\line(1,0){185}}
+\put(235,25){\line(0,1){54}}
+\put(225,79){\line(1,0){20}}\put(225,79){\line(1,2){10}}\put(245,79){\line(-1,2){10}}
+\put(225,101){\line(1,0){20}}\put(235,101){\line(0,1){59}}
+\put(345,160){\line(0,-1){62}}\put(334,98){\line(1,0){22}}
+\put(334,91){\line(1,0){22}}\put(345,91){\line(0,-1){66}}
+\put(410,160){\line(0,-1){44}}
+\put(403,68){\framebox(14,48){}}
+\put(410,68){\line(0,-1){43}}
+\put(90,59){\framebox(77,46){\shortstack{TL494\\module}}}
+\put(167,82){\line(1,0){26}}\put(193,82){\line(0,-1){30}}
+\put(193,52){\vector(0,-1){12}}
+\put(1,111){$V_{in}$}\put(266,143){$L$}\put(251,87){$D_1$}
+\put(354,93){$C_1$}\put(418,92){$R_1$}
+\put(179,5){$Q_1$}\put(365,125){$V_o$}
+\end{picture}
+\captionof{figure}{Simplified buck-converter circuit with the low-side switch arrangement used in the laboratory sheet. Gate resistors are omitted for clarity.}
+\end{center}
+
+\section{Converter Design}
+\textbf{Duty ratio and timing.} In ideal continuous conduction, $V_o=DV_{in}$. At the nominal input,
+\begin{equation}
+D=\frac{V_o}{V_{in}}=\frac{10}{20}=0.5,\qquad T_s=\frac{1}{f_s}=40\,\mu\mathrm{s}.
+\end{equation}
+Thus, $t_{on}=DT_s=20\,\mu\mathrm{s}$ and $t_{off}=20\,\mu\mathrm{s}$. To maintain 10 V over the specified input range, the ideal duty ratio varies from 66.7\% at 15 V to 40\% at 25 V.
+
+\textbf{Load resistance.} For the rated output power,
+\begin{equation}
+I_o=\frac{100}{10}=10\,\mathrm{A},\qquad R_1=\frac{V_o^2}{P_o}=\frac{10^2}{100}=1\,\Omega.
+\end{equation}
+
+
+\newpage
+\textbf{Inductor $L$.} During the ON interval, $v_L=V_{in}-V_o$. Therefore,
+\begin{equation}
+L=\frac{(V_{in}-V_o)D}{f_s\Delta I_L}
+=\frac{(20-10)(0.5)}{(25\times10^3)(0.2)}=1.00\,\mathrm{mH}.
+\end{equation}
+The ripple is highest at 25 V. At this input, $D=0.4$ and the required inductance is $1.20$ mH to keep the ripple within 0.2 A over the full input range.
+
+\textbf{Capacitor $C_1$.} Neglecting ESR, the minimum output capacitance is
+\begin{equation}
+C_1=\frac{\Delta I_L}{8f_s\Delta V_o}
+=\frac{0.2}{8(25\times10^3)(0.1)}=10\,\mu\mathrm{F}.
+\end{equation}
+A practical capacitor needs margin for ESR and tolerance. Its installed value could not be read from the photographs.
+
+\textbf{Practical inductance.} With the $0.95$ mH inductor used in the experiment, the expected ripple at 20 V is
+\begin{equation}
+\Delta I_L=\frac{(20-10)(0.5)}{(25\times10^3)(0.95\times10^{-3})}
+\approx0.211\,\mathrm{A}.
+\end{equation}
+This is about 5.3\% above the specified ripple. At the rated 10 A output current, the calculated current varies from about 9.895 A to 10.105 A.
+
+\begin{center}
+\captionof{table}{Summary of the nominal design.}
+\begin{tabular}{lll}\toprule
+Quantity & Calculated value & Practical information\\\midrule
+Duty ratio & 50\% & Gate capture: 53.71\%\\
+Load $R_1$ & $1\,\Omega$, 100 W & Adjustable rheostat used\\
+Inductor $L$ & 1.00 mH at 20 V & 0.95 mH used\\
+Capacitor $C_1$ & $10\,\mu$F minimum & Installed value unrecorded\\\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Results}
+The clean rectangular waveform in Fig. 2 is consistent with the gate-drive signal. It shows a frequency of 26.04 kHz and a positive duty ratio of 53.71\%, close to the nominal 25 kHz and 50\%. The photographs show CH2 only, so the signal identities are inferred from their shape and scale.
+\scope{10}{0.62}{Probable gate-drive waveform (CH2, 5 V/div, 20 $\mu$s/div).}
+
+\newpage
+The nearly DC trace in Fig. 3 is consistent with the filtered output. Its displayed mean is 10.12 V, about 1.2\% above the 10 V target. Figure 4 shows a switching-voltage waveform with narrow spikes at the transitions.
+\scope{06}{0.63}{Probable output voltage (CH2, 10 V/div, 40 $\mu$s/div). Mean: 10.12 V.}
+\scope{08}{0.63}{Switching-voltage waveform (CH2, 20 V/div, 40 $\mu$s/div). The exact measurement point is not labelled.}
+
+\begin{center}
+\captionof{table}{Readings from the selected oscilloscope captures.}
+\begin{tabular}{lccc}\toprule
+Capture & Frequency (kHz) & Mean (V) & Duty (\%)\\\midrule
+Probable gate drive & 26.04 & 7.736 & 53.71\\
+Probable output & --- & 10.12 & ---\\
+Switching voltage & 25.19 & 9.273 & ---\\\bottomrule
+\end{tabular}
+\end{center}
+The automatic duty reading in Fig. 4 is flagged and does not agree with the visible pulse width, so it is not used. The output-ripple magnitude cannot be checked accurately at 10 V/div.
+
+\newpage
+\scope{09}{0.70}{Expanded switching edge (CH2, 20 V/div, 2 $\mu$s/div), showing overshoot and damped ringing.}
+
+\section{Discussion}
+The measured gate frequency is about 4.2\% above the design value. The duty ratio is also slightly above 50\%. Such differences can arise from the PWM-module adjustment and component tolerances. At 20 V, a duty ratio of 53.71\% would ideally give 10.74 V; the separate output capture shows 10.12 V. Circuit losses may contribute, but the two photographs do not establish an identical operating condition.
+
+The 0.95 mH inductor is close to the nominal calculated value of 1 mH. Its expected current ripple is 0.211 A at 25 kHz. The inductor current should rise during the ON interval and fall during the OFF interval, but no calibrated current waveform is available for comparison.
+
+The spikes and ringing in the switching traces can be affected by wiring inductance, device capacitance, diode recovery and the oscilloscope probe connection. The MHz readings on some noisy captures describe unreliable edge detection or ringing rather than the main switching frequency.
+
+The circuit switches the load return, so the output voltage is the voltage across the load and capacitor. Since the probe connections are not visible, the output and switching-voltage labels remain inferred. The supply photograph shows 20.0 V and 2.51 A, corresponding to about 50.2 W input if read simultaneously. Thus, the photographs do not verify operation at the rated 100 W output or establish efficiency.
+
+\section{Conclusion}
+The nominal buck-converter design gives a 50\% duty ratio, a $1\,\Omega$ load, a 1 mH inductor and a minimum output capacitance of $10\,\mu$F. The experiment used a 0.95 mH inductor. The recorded waveforms show switching near 26 kHz and an output consistent with approximately 10 V. The calculated ripple is close to the nominal requirement, while measured current ripple and output-ripple compliance remain unverified.
+\end{document}

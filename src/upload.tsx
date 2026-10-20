@@ -125,16 +125,13 @@ export function UploadManager({ onClose }: { onClose: () => void }) {
   }
   return (
     <Modal
-      title="A few more memories"
+      title="Add photos"
       onClose={() => {
         if (!running) onClose();
       }}
       wide
     >
-      <p>
-        Keep this page open while uploading. Originals are kept exactly as you
-        give them to us.
-      </p>
+      <p>Keep this page open until the uploads finish.</p>
       <div
         className="dropzone"
         onDragOver={(e) => e.preventDefault()}
@@ -144,8 +141,8 @@ export function UploadManager({ onClose }: { onClose: () => void }) {
         }}
       >
         <Upload size={32} />
-        <h3>Little moments belong here.</h3>
-        <p>Drop your photos, or choose them from your gallery.</p>
+
+        <p>Drop photos here or choose them below.</p>
         <input
           ref={input}
           type="file"
@@ -168,7 +165,7 @@ export function UploadManager({ onClose }: { onClose: () => void }) {
         onChange={(e: any) => setAlbum(e.target.value)}
         disabled={running}
       >
-        <option value="">Just our memories</option>
+        <option value="">No album</option>
         {albums.data?.map((a: any) => (
           <option key={a.id} value={a.id}>
             {a.title}

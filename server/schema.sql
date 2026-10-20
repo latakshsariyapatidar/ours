@@ -23,3 +23,8 @@ CREATE TABLE IF NOT EXISTS processing_jobs(id uuid PRIMARY KEY,photo_id uuid UNI
 CREATE TABLE IF NOT EXISTS export_jobs(id uuid PRIMARY KEY,draft_id uuid REFERENCES studio_drafts ON DELETE CASCADE,version integer NOT NULL,state text DEFAULT 'pending',error text,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
 CREATE TABLE IF NOT EXISTS audit_events(id bigserial PRIMARY KEY,user_id uuid REFERENCES users,event text NOT NULL,created_at timestamptz DEFAULT now());
 INSERT INTO migrations(version) VALUES(1) ON CONFLICT DO NOTHING;
+-- Format 2 omits the retired song attachment. Keep old packages inaccessible
+-- instead of reusing a legacy archive for a newly requested download.
+ALTER TABLE export_jobs ADD COLUMN IF NOT EXISTS format_version integer NOT NULL DEFAULT 1;
+ALTER TABLE export_jobs ALTER COLUMN format_version SET DEFAULT 2;
+INSERT INTO migrations(version) VALUES(2) ON CONFLICT DO NOTHING;

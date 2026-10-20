@@ -55,46 +55,36 @@ function Auth({ state, refresh }: { state: any; refresh: () => void }) {
           <span>♥</span>
         </div>
         <div>
-          <span className="eyebrow">JUST THE TWO OF US</span>
-          <h1>
-            All our moments.
-            <br />
-            <em>A little closer.</em>
-          </h1>
-          <p>Our memories, our little corner of the internet.</p>
+          <h1>Just us.</h1>
         </div>
         <div className="auth-art" aria-hidden="true">
-          <span>the places we went</span>
-          <span>the little things</span>
+          <span>you</span>
+          <span>& me</span>
           <Heart />
         </div>
-        <small>A private home for the stories we share.</small>
       </section>
       <section className="auth-form">
-        <span className="eyebrow">
-          WELCOME {mode === "login" ? "BACK" : "HOME"}
-        </span>
         <h2>
           {mode === "setup"
-            ? "Make this space yours."
+            ? "Set up Ours"
             : mode === "join"
-              ? "Your person saved you a place."
-              : "Good to have you here."}
+              ? "Come in."
+              : "Hi, you."}
         </h2>
         <p>
           {mode === "setup"
             ? "Use your private setup token to create the first account."
             : mode === "join"
-              ? "An invitation, just for you. Create your account below."
-              : "Sign in to pick up where you left off."}
+              ? "Create your account to join."
+              : ""}
         </p>
         <ActionForm
           submit={
             mode === "login"
-              ? "Come on in"
+              ? "Sign in"
               : mode === "setup"
-                ? "Create our home"
-                : "Join our home"
+                ? "Create account"
+                : "Join"
           }
           onSubmit={async (data) => {
             const user = await api(`/auth/${mode}`, "POST", data);
@@ -137,13 +127,11 @@ function Auth({ state, refresh }: { state: any; refresh: () => void }) {
               mode === "login" ? "current-password" : "new-password"
             }
           />
-          <small>Use at least 12 characters.</small>
+          {mode !== "login" && <small>Use at least 12 characters.</small>}
         </ActionForm>
         {!state.setup && (
           <button className="ghost" onClick={() => setJoin(!join)}>
-            {join
-              ? "Already have an account? Sign in"
-              : "Have an invitation? Join your person"}
+            {join ? "Already have an account? Sign in" : "Use an invitation"}
           </button>
         )}
       </section>
@@ -169,10 +157,18 @@ function App() {
   const loc = useLocation();
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute(
+        "content",
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--background")
+          .trim(),
+      );
     try {
       localStorage.setItem("ours-theme-v2", dark ? "dark" : "light");
       localStorage.setItem("ours-theme", dark ? "dark" : "light");
-    } catch { }
+    } catch {}
   }, [dark]);
   useEffect(() => {
     if (!notice) return;
@@ -206,7 +202,6 @@ function App() {
               {state.data.name}
               <span>♥</span>
             </Link>
-            <span className="sidebar-note">A life, collected together.</span>
             <nav>
               {nav.map(([path, label, Icon]) => (
                 <NavLink key={path} to={path} end={path === "/"}>
@@ -242,7 +237,9 @@ function App() {
           </aside>
           <div className="main-shell">
             <header className="topbar">
-              <span>OUR MEMORIES, OUR WAY</span>
+              <Link className="topbar-name" to="/">
+                {state.data.name}
+              </Link>
               <div className="row">
                 <button
                   className="icon"
@@ -253,6 +250,13 @@ function App() {
                 >
                   {dark ? <Sun size={19} /> : <Moon size={19} />}
                 </button>
+                <Link
+                  className="icon account-link"
+                  to="/settings"
+                  aria-label="Account settings"
+                >
+                  <SettingsIcon size={18} />
+                </Link>
                 <button className="primary" onClick={() => setUpload(true)}>
                   <Plus size={17} /> Add memories
                 </button>
@@ -305,4 +309,4 @@ createRoot(document.getElementById("root")!).render(
   </React.StrictMode>,
 );
 if ("serviceWorker" in navigator)
-  navigator.serviceWorker.register("/sw.js").catch(() => { });
+  navigator.serviceWorker.register("/sw.js").catch(() => {});

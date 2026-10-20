@@ -8,9 +8,9 @@ Express 5, PostgreSQL 17, Sharp, exifr and system libheif implement the backend.
 
 ## Data model
 
-`server/schema.sql` is the first transactional migration, serialized by a PostgreSQL advisory lock. Future migrations must append numbered scripts rather than edit the meaning of previously deployed columns. Relationships use foreign keys and cascading join cleanup. Photos have globally unique SHA-256, secure UUID file identifiers and ordered `(capture_local,id)` pagination. Manual albums and favorites are many-to-many references. Each Studio draft has a monotonically increasing version, final ordered photos, separate suggestions, caption history, song ideas, comments and identity/timestamp approvals.
+`server/schema.sql` is the first transactional migration, serialized by a PostgreSQL advisory lock. Future migrations must append numbered scripts rather than edit the meaning of previously deployed columns. Relationships use foreign keys and cascading join cleanup. Photos have globally unique SHA-256, secure UUID file identifiers and ordered `(capture_local,id)` pagination. Manual albums and favorites are many-to-many references. Each Studio draft has a monotonically increasing version, final ordered photos, separate suggestions, caption history and comments. Legacy song and approval tables are retained during upgrades but are no longer used by the application.
 
-Sessions and invitations store SHA-256 hashes of random 256-bit bearer tokens. Only two users may register, protected by an advisory lock. Setup claims are also serialized. All media and metadata routes require a live database session. Cookie: HttpOnly, SameSite=Strict, Secure in HTTPS mode. Mutations enforce a session-bound CSRF token and exact origin. The app never fetches song links or GPS URLs on behalf of users. Password hashing uses Argon2id, 19 MiB, two iterations, one lane. Login/setup/join/password attempts are rate limited. Local CLI password recovery is audited and revokes sessions.
+Sessions and invitations store SHA-256 hashes of random 256-bit bearer tokens. Only two users may register, protected by an advisory lock. Setup claims are also serialized. All media and metadata routes require a live database session. Cookie: HttpOnly, SameSite=Strict, Secure in HTTPS mode. Mutations enforce a session-bound CSRF token and exact origin. The app never sends GPS coordinates to third-party services. Password hashing uses Argon2id, 19 MiB, two iterations, one lane. Login/setup/join/password attempts are rate limited. Local CLI password recovery is audited and revokes sessions.
 
 ## Storage and upload protocol
 
@@ -32,9 +32,9 @@ Jobs persist pending, processing, retrying, completed and failed states. API res
 
 ## Studio invariants
 
-Collecting → Ready to Curate → Final Review → Ready to Post → Posted → Archived is the intended workflow; users may reopen earlier stages. Ready to Post and Posted are guarded server-side. Both current users must approve a nonempty ready, nondeleted selection in Final Review. Caption, hashtags, order, accepted photos, ratio or fit changes clear approvals. Titles/notes alone retain approval. Suggestions/comments/song ideas do not alter the final arrangement. A row lock and expected version make saves atomic. Deleted selected photos invalidate approvals and advance the draft version. Export downloads check the current version and final state, so outdated packages cannot be fetched after an edit. Already-downloaded files cannot be recalled.
+The latest workflow is defined in PERSONAL-DIRECTION.md. Posts are drafts or optionally marked Posted. Either authenticated household member can download a saved, nonempty carousel of ready, undeleted photos. Suggestions stay separate from selected photos. Expected-version saves prevent lost edits. Photo deletion advances the draft version; stale ZIP downloads are rejected. Size and border choices live in the download dialog. There are no approval or song endpoints.
 
-ZIP exports are disk-backed and processed serially. JPEG names `01.jpg`, `02.jpg`, etc. preserve order; caption.txt and songs.txt accompany them. Packages expire after 24 hours. No Instagram authentication or automatic posting. The maximum carousel count is configurable; the default is an operator setting, not a promise about future platform limits.
+ZIP exports are disk-backed and processed serially. Numbered JPEGs preserve order and caption.txt accompanies them. Packages expire after 24 hours. Old song and approval records are retained without being returned or exported. No Instagram authentication or automatic posting.
 
 ## Resource target
 

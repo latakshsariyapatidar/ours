@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import { z } from "zod";
 import archiver from "archiver";
 import { q, tx } from "./db.js";
-import { fail, validateOrder, materialChange, requireOwner } from "./core.js";
+import { fail, validateOrder, requireOwner } from "./core.js";
 import { mediaPath, storage } from "./media.js";
 const text = z.string().trim().max(5000);
 const title = z.string().trim().min(1).max(160);
@@ -33,11 +33,8 @@ export async function invalidatePhoto(c, id) {
     )
   ).rows;
   for (const row of drafts) {
-    await c.query("DELETE FROM draft_approvals WHERE draft_id=$1", [
-      row.draft_id,
-    ]);
     await c.query(
-      "UPDATE studio_drafts SET version=version+1,status=CASE WHEN status IN ('ready_to_post','final_review') THEN 'ready_to_curate' ELSE status END,updated_at=now() WHERE id=$1",
+      "UPDATE studio_drafts SET version=version+1,updated_at=now() WHERE id=$1",
       [row.draft_id],
     );
   }
@@ -104,7 +101,10 @@ export function routes(app) {
     function formatTime(iso) {
       try {
         const d = new Date(iso);
-        return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        return d.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        });
       } catch {
         return "";
       }
@@ -582,41 +582,30 @@ export function routes(app) {
   });
   app.get("/api/drafts/:id", async (req, res) => {
     const d = await draft(req.params.id);
-    const [photos, suggestions, comments, captions, songs, approvals] =
-      await Promise.all([
-        q(
-          "SELECT p.*,dp.position FROM studio_draft_photos dp JOIN photos p ON p.id=dp.photo_id WHERE draft_id=$1 ORDER BY position",
-          [d.id],
-        ),
-        q(
-          "SELECT s.*,p.filename,p.status,p.deleted_at,u.name FROM studio_photo_suggestions s JOIN photos p ON p.id=s.photo_id JOIN users u ON u.id=s.user_id WHERE draft_id=$1 ORDER BY created_at",
-          [d.id],
-        ),
-        q(
-          "SELECT c.*,u.name FROM draft_comments c JOIN users u ON u.id=c.user_id WHERE draft_id=$1 ORDER BY created_at",
-          [d.id],
-        ),
-        q(
-          "SELECT c.*,u.name FROM caption_versions c JOIN users u ON u.id=c.user_id WHERE draft_id=$1 ORDER BY created_at DESC",
-          [d.id],
-        ),
-        q(
-          "SELECT s.*,u.name FROM song_suggestions s JOIN users u ON u.id=s.user_id WHERE draft_id=$1 ORDER BY created_at",
-          [d.id],
-        ),
-        q(
-          "SELECT a.*,u.name FROM draft_approvals a JOIN users u ON u.id=a.user_id WHERE draft_id=$1",
-          [d.id],
-        ),
-      ]);
+    const [photos, suggestions, comments, captions] = await Promise.all([
+      q(
+        "SELECT p.*,dp.position FROM studio_draft_photos dp JOIN photos p ON p.id=dp.photo_id WHERE draft_id=$1 ORDER BY position",
+        [d.id],
+      ),
+      q(
+        "SELECT s.*,p.filename,p.status,p.deleted_at,u.name FROM studio_photo_suggestions s JOIN photos p ON p.id=s.photo_id JOIN users u ON u.id=s.user_id WHERE draft_id=$1 ORDER BY created_at",
+        [d.id],
+      ),
+      q(
+        "SELECT c.*,u.name FROM draft_comments c JOIN users u ON u.id=c.user_id WHERE draft_id=$1 ORDER BY created_at",
+        [d.id],
+      ),
+      q(
+        "SELECT c.*,u.name FROM caption_versions c JOIN users u ON u.id=c.user_id WHERE draft_id=$1 ORDER BY created_at DESC",
+        [d.id],
+      ),
+    ]);
     res.json({
       ...d,
       photos: photos.rows,
       suggestions: suggestions.rows,
       comments: comments.rows,
       captions: captions.rows,
-      songs: songs.rows,
-      approvals: approvals.rows,
     });
   });
   app.put("/api/drafts/:id", async (req, res) => {
@@ -655,43 +644,16 @@ export function routes(app) {
       if (d.version !== b.version)
         fail(
           409,
-          "Your partner saved changes. Your edits are still here; reload and reconcile before saving.",
+          "This post changed while you were editing. Load the latest version before saving.",
         );
-      const oldIds = (
-        await c.query(
-          "SELECT photo_id FROM studio_draft_photos WHERE draft_id=$1 ORDER BY position",
-          [d.id],
-        )
-      ).rows.map((p) => p.photo_id);
       for (const id of b.photos) {
         const p = await photo(id);
         if (p.status !== "ready")
           fail(409, "Wait for all selected photos to finish processing");
       }
-      const material = materialChange(d, b, oldIds, b.photos);
-      if (material)
-        await c.query("DELETE FROM draft_approvals WHERE draft_id=$1", [d.id]);
-      const approvals = Number(
-        (
-          await c.query(
-            "SELECT count(*) FROM draft_approvals WHERE draft_id=$1",
-            [d.id],
-          )
-        ).rows[0].count,
-      );
-      let status = b.status;
-      if (material && ["ready_to_post", "posted"].includes(d.status))
-        status = "ready_to_curate";
-      if (
-        ["ready_to_post", "posted"].includes(status) &&
-        (approvals !== 2 || material)
-      )
-        fail(
-          409,
-          "Both of you must approve the current selection and caption first",
-        );
-      if (status === "final_review" && !b.photos.length)
-        fail(400, "Choose at least one photo for final review");
+      const status = ["posted", "archived"].includes(b.status)
+        ? b.status
+        : "collecting";
       await c.query("DELETE FROM studio_draft_photos WHERE draft_id=$1", [
         d.id,
       ]);
@@ -705,10 +667,6 @@ export function routes(app) {
           "INSERT INTO caption_versions(id,draft_id,user_id,body) VALUES($1,$2,$3,$4)",
           [randomUUID(), d.id, req.user.id, b.caption],
         );
-      await c.query("UPDATE draft_approvals SET version=$2 WHERE draft_id=$1", [
-        d.id,
-        d.version + 1,
-      ]);
       return (
         await c.query(
           "UPDATE studio_drafts SET title=$2,notes=$3,caption=$4,hashtags=$5,ratio=$6,fit=$7,status=$8,post_url=$9,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
@@ -770,79 +728,23 @@ export function routes(app) {
     );
     res.status(201).json({ ok: true });
   });
-  app.post("/api/drafts/:id/songs", async (req, res) => {
-    await draft(req.params.id);
-    const b = z
-      .object({
-        title,
-        artist: text.default(""),
-        link: z
-          .union([z.literal(""), z.url().regex(/^https:\/\//)])
-          .default(""),
-        notes: text.default(""),
-      })
-      .parse(req.body);
-    await q(
-      "INSERT INTO song_suggestions(id,draft_id,user_id,title,artist,link,notes) VALUES($1,$2,$3,$4,$5,$6,$7)",
-      [
-        randomUUID(),
-        req.params.id,
-        req.user.id,
-        b.title,
-        b.artist,
-        b.link,
-        b.notes,
-      ],
-    );
-    res.status(201).json({ ok: true });
-  });
-  app.post("/api/drafts/:id/approve", async (req, res) => {
-    const b = z.object({ version: z.number().int() }).parse(req.body);
-    await tx(async (c) => {
-      await c.query("SELECT id FROM studio_drafts WHERE id=$1 FOR UPDATE", [
-        req.params.id,
-      ]);
-      const d = await draft(req.params.id, c);
-      if (d.version !== b.version)
-        fail(409, "Draft changed. Review the latest version first.");
-      if (!["final_review", "ready_to_post"].includes(d.status))
-        fail(409, "Move the draft to Final Review first");
-      const p = (
-        await c.query(
-          "SELECT p.status,p.deleted_at FROM studio_draft_photos dp JOIN photos p ON p.id=dp.photo_id WHERE draft_id=$1",
-          [d.id],
-        )
-      ).rows;
-      if (!p.length || p.some((p) => p.deleted_at || p.status !== "ready"))
-        fail(409, "All selected photos must be available");
-      await c.query(
-        "INSERT INTO draft_approvals(draft_id,user_id,version) VALUES($1,$2,$3) ON CONFLICT(draft_id,user_id) DO UPDATE SET version=$3,created_at=now()",
-        [d.id, req.user.id, d.version],
-      );
-      if (
-        Number(
-          (
-            await c.query(
-              "SELECT count(*) FROM draft_approvals WHERE draft_id=$1",
-              [d.id],
-            )
-          ).rows[0].count,
-        ) === 2
-      )
-        await c.query(
-          "UPDATE studio_drafts SET status='ready_to_post' WHERE id=$1",
-          [d.id],
-        );
-    });
-    res.json({ ok: true });
-  });
   app.post("/api/drafts/:id/exports", async (req, res) => {
     const d = await draft(req.params.id);
-    if (!["ready_to_post", "posted"].includes(d.status))
-      fail(409, "Both of you must approve before exporting");
+    const selected = (
+      await q(
+        "SELECT p.status,p.deleted_at FROM studio_draft_photos dp JOIN photos p ON p.id=dp.photo_id WHERE draft_id=$1",
+        [d.id],
+      )
+    ).rows;
+    if (!selected.length) fail(400, "Choose at least one photo to download");
+    if (selected.some((photo) => photo.deleted_at || photo.status !== "ready"))
+      fail(
+        409,
+        "Some selected photos are unavailable. Remove them or restore them first.",
+      );
     const existing = (
       await q(
-        "SELECT * FROM export_jobs WHERE draft_id=$1 AND version=$2 AND state IN ('pending','processing','completed') ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM export_jobs WHERE draft_id=$1 AND version=$2 AND format_version=2 AND state IN ('pending','processing','completed') ORDER BY created_at DESC LIMIT 1",
         [d.id, d.version],
       )
     ).rows[0];
@@ -865,7 +767,7 @@ export function routes(app) {
   app.get("/api/exports/:id/download", async (req, res) => {
     const job = (
       await q(
-        "SELECT e.* FROM export_jobs e JOIN studio_drafts d ON d.id=e.draft_id WHERE e.id=$1 AND e.version=d.version AND d.status IN ('ready_to_post','posted')",
+        "SELECT e.* FROM export_jobs e JOIN studio_drafts d ON d.id=e.draft_id WHERE e.id=$1 AND e.version=d.version AND e.format_version=2",
         [req.params.id],
       )
     ).rows[0];

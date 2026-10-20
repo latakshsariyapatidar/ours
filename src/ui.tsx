@@ -119,10 +119,12 @@ export function NoteField({
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
 }) {
+  const id = useId();
   return (
-    <label className="field">
-      <span>{label}</span>
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
       <textarea
+        id={id}
         className="resize-none"
         name={name}
         value={value}
@@ -131,7 +133,7 @@ export function NoteField({
         rows={rows}
         style={{ resize: "none" }}
       />
-    </label>
+    </div>
   );
 }
 export function Select({
@@ -257,7 +259,7 @@ export function Page({
     <>
       <header className="page-heading">
         <div>
-          <span className="eyebrow">{eyebrow || "OUR LITTLE CORNER"}</span>
+          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>
           {description && <p>{description}</p>}
         </div>
@@ -270,7 +272,7 @@ export function Page({
 export function Loading() {
   return (
     <div className="loading" role="status">
-      <span className="spinner" /> Gathering the little things…
+      <span className="spinner" /> Loading…
     </div>
   );
 }

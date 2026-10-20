@@ -7,18 +7,19 @@ test("authenticated library, album form and Studio at desktop and mobile sizes",
   await page
     .getByLabel("Password", { exact: true })
     .fill("ours-integration-password-2026");
-  await page.getByRole("button", { name: "Come on in" }).click();
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(
     page.getByRole("heading", { name: "Hello, Alex." }),
   ).toBeVisible();
   const albumTitle = "Browser chapter " + Date.now();
   await page.getByRole("link", { name: "Albums", exact: true }).click();
-  await page.getByRole("button", { name: "New album", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New album", exact: true })
+    .first()
+    .click();
   await page.getByLabel("Album title").fill(albumTitle);
   await page.getByRole("button", { name: "Create album", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: albumTitle }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: albumTitle })).toBeVisible();
   await page.getByRole("link", { name: "Memories", exact: true }).click();
   await page.getByLabel("Search photos").fill("no-such-image");
   await page.getByRole("button", { name: "Search", exact: true }).click();
@@ -31,23 +32,24 @@ test("authenticated library, album form and Studio at desktop and mobile sizes",
     .first()
     .click();
   await page.getByRole("button", { name: "Photo details" }).click();
-  await expect(page.getByText("The story behind the photograph")).toBeVisible();
+  await expect(page.getByText("Photo details")).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("link", { name: "Our Studio", exact: true }).click();
-  await page.getByRole("button", { name: "Start a post" }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: "Our Studio", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New post" }).click();
   const draftTitle = "Browser story " + Date.now();
-  await page.getByLabel("Give our post a title").fill(draftTitle);
-  await page.getByRole("button", { name: "Create our draft" }).click();
+  await page.getByLabel("Title").fill(draftTitle);
+  await page.getByRole("button", { name: "Create post" }).click();
   await expect(
     page.getByRole("heading", { name: draftTitle, exact: true }),
   ).toBeVisible();
   await page
-    .getByLabel("Final caption", { exact: true })
+    .getByLabel("Caption", { exact: true })
     .fill("A little story from us.");
-  await page.getByRole("button", { name: "Save our changes" }).click();
-  await expect(
-    page.getByRole("button", { name: "All changes saved" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("link", { name: "Home", exact: true }).click();
   await expect(
